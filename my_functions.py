@@ -225,29 +225,33 @@ def show_content(authenticator, name, date_format):
     st.title('Traffic Dashboard')
     
     st.header('Overall Metrics')
-    total_num_events = fact_events.shape[0]
-    event_count_by_event_type = fact_events.groupby('event_type')['camera_id'].count()
-    available_events = list(event_count_by_event_type.index)
-    num_of_available_events = len(available_events)
-    event_count_values = event_count_by_event_type.values
     
-    st.metric(label='Total Number of Events', value=total_num_events)
-    
-    event_columns = st.columns(num_of_available_events)
-    
-    for i, (event_name, event_count) in enumerate(zip(available_events, event_count_values)):
-        event_columns[i].metric(label=event_name, value=event_count)
-    
-    confidence_by_event_type = fact_events.groupby('event_type')['confidence'].mean().dropna()
-    event_with_confidence = list(confidence_by_event_type.index)
-    confidence_values = confidence_by_event_type.values
-    num_of_events_with_confidence = len(event_with_confidence)
-    
-    confidence_columns = st.columns(num_of_events_with_confidence)
-    
-    for i, (event_name, event_confidence) in enumerate(zip(event_with_confidence, confidence_values)):
-        confidence_columns[i].metric(label=f'**{event_name}** Detection Confidence', 
-                                     value=f'{event_confidence * 100 : .2f} %')
+    try:
+        total_num_events = fact_events.shape[0]
+        event_count_by_event_type = fact_events.groupby('event_type')['camera_id'].count()
+        available_events = list(event_count_by_event_type.index)
+        num_of_available_events = len(available_events)
+        event_count_values = event_count_by_event_type.values
+        
+        st.metric(label='Total Number of Events', value=total_num_events)
+        
+        event_columns = st.columns(num_of_available_events)
+        
+        for i, (event_name, event_count) in enumerate(zip(available_events, event_count_values)):
+            event_columns[i].metric(label=event_name, value=event_count)
+        
+        confidence_by_event_type = fact_events.groupby('event_type')['confidence'].mean().dropna()
+        event_with_confidence = list(confidence_by_event_type.index)
+        confidence_values = confidence_by_event_type.values
+        num_of_events_with_confidence = len(event_with_confidence)
+        
+        confidence_columns = st.columns(num_of_events_with_confidence)
+        
+        for i, (event_name, event_confidence) in enumerate(zip(event_with_confidence, confidence_values)):
+            confidence_columns[i].metric(label=f'**{event_name}** Detection Confidence', 
+                                         value=f'{event_confidence * 100 : .2f} %')
+    except:
+        st.write(NO_DATA_MESSAGE)
     
     st.header('Important Streets')
     
@@ -548,23 +552,22 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
     df_hotspot_streets = pd.read_excel(DATA_PATH, sheet_name='Hotspot Congestion')
     df_in_out_kl = pd.read_excel(DATA_PATH, sheet_name='InOut KL Traffic')
     available_roads = tuple(df_hotspot_streets['road'].values)
-    
+
     with st.sidebar:
-    
+
         with st.form(key='queryDataKey'):
             st.write('Choose your relevant filters below then click "Submit". Will take some time...')
 
             selected_road = st.multiselect('Which road you want to view?', available_roads, [available_roads[0]])
             selected_datetime = st.select_slider('Timestamp', hourly_datetime_list, value=(today_minus_2_str, today_str))
             seleted_dest = st.multiselect('Inbound or Outbound of KL?', ['IN', 'OUT'], ['IN'])
-            
-            st.write('How many days you want to forecast ahead?')
+
             day_to_forecast = st.slider('How many days you want to forecast ahead?', 1, 7, 1)
             hour_to_forecast = day_to_forecast*24
 
             submit_button = st.form_submit_button("Submit")
 
-            if submit_button:      
+            if submit_button:
                       
                 if len(selected_road) != 1:
                     query_dim_camera = f'''SELECT *
@@ -587,6 +590,7 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
                                                 selected_datetime)
                 
                 df_volume_speed['datetime'] = pd.to_datetime(df_volume_speed['datetime'])
+                df_volume_speed_csv = convert_df(df_volume_speed)
             
                 df_hourly_los = df_volume_speed.pivot_table(values=['LOS'],
                                                             index=['datetime'],
@@ -624,8 +628,10 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
                 
                 # Train-test split
                 y_train, y_test = temporal_train_test_split(y_endogenous, test_size=0.3)
+                
                 y_train.index.name = ""
                 y_train.columns = ['Training Data']
+                
                 y_test.index.name = ""
                 y_test.columns = ['Test Data']
                 
@@ -679,41 +685,92 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
                 
     DATA_NOT_QUERIED_YET = 'Data not queried yet, nothing to display'
 
-    st.title('(Development) Traffic Web Dashboard')
+    st.title('Traffic Dashboard')
+    
+    st.header('Overall Metrics')
+    
+    st.subheader('Vehicle Count')
+    
+    minimum_car_count = int(df_volume_speed['car_count'].min())
+    average_car_count = int(df_volume_speed['car_count'].mean())
+    maximum_car_count = int(df_volume_speed['car_count'].max())
+    
+    car_column_1, car_column_2 , car_column_3 = st.columns(3)
+    
+    with car_column_1:
+        st.metric(label='Minimum Car Count', value=minimum_car_count)
+        
+    with car_column_2:
+        st.metric(label='Average Car Count', value=average_car_count)
+        
+    with car_column_3:
+        st.metric(label='Maximum Car Count', value=maximum_car_count)
+    
+    descriptions = df_volume_speed.describe()
+    
+    st.subheader('Lane Speed (km/h)')
+    minimum_lane_speed  = round(descriptions.loc['min', 'lane_speed'], 2)
+    average_lane_speed = round(descriptions.loc['mean', 'lane_speed'], 2)
+    max_lane_speed = round(descriptions.loc['max', 'lane_speed'], 2)
+    
+    minimum_lane_speed_column, mean_lane_speed_column, max_lane_speed_column = st.columns(3)
+    
+    with minimum_lane_speed_column:
+        st.metric(label='Minimum Lane Speed', value=minimum_lane_speed)
+    
+    with mean_lane_speed_column:
+        st.metric(label='Average Lane Speed', value=average_lane_speed)
+    
+    with max_lane_speed_column:
+        st.metric(label='Maximum Lane Speed', value=max_lane_speed)
+    
+    st.subheader('LOS (%)')
+    minimum_los = round(descriptions.loc['min', 'LOS'], 4)
+    average_los = round(descriptions.loc['mean', 'LOS'], 4)
+    max_los = round(descriptions.loc['max', 'LOS'], 4)
+    
+    minimum_los_column, mean_los_column, max_los_column = st.columns(3)
+    
+    with minimum_los_column:
+        st.metric(label='Minimum LOS', value=minimum_los)
+    
+    with mean_los_column:
+        st.metric(label='Average LOS', value=average_los)
 
-    ## Define the URL
-    url = 'https://www.wikipedia.org/'
+    with max_los_column:
+        st.metric(label='Maximum LOS', value=max_los)
 
-    ## Use the st.markdown() function to embed the URL in text
-    st.markdown(f'This is a link to [wikipedia.com]({url})')
-
-    ## Changing fontsizes
-    st.markdown("# This text will be large")
-    st.markdown("## This text will be medium")
-    st.markdown("### This text will be small")
-    st.markdown("This text will be the smallest")
 
     st.header('Raw Data')
 
     st.subheader('Cameras In Selected Road')
+    
     try:
         st.write(dim_camera)
     except:
         st.write(DATA_NOT_QUERIED_YET)
         
     column_1, column_2 = st.columns(2)
+    
     with column_1:
         st.subheader('Hot-Spot Streets')
         st.write(df_hotspot_streets)
+        
     with column_2:
         st.subheader('In-Out KL Streets')
         st.write(df_in_out_kl)
-        
+
+
     st.header('Raw Volume-Speed-LOS% Data')
     try:
         st.write(df_volume_speed)
+        st.download_button(label="Download data as CSV",
+                           data=df_volume_speed_csv,
+                           file_name='volume_speed_los.csv',
+                           mime='text/csv')
     except:
         st.write(DATA_NOT_QUERIED_YET)
+
 
     st.header('Hourly Vehicle Count')
     try:
