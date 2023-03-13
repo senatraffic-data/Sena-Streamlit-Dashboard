@@ -1,0 +1,13 @@
+credentials:
+  usernames:
+    rhmnnmhmd:
+      email: rahman99legacy@gmail.com
+      name: Abdul Rahman
+      password: '$2b$12$gqzY.lgyC.ieeB3PbdZq6.k8eNiAEXZK8LM5fWJwSiw.XreiaQkXa' # To be replaced with hashed password
+cookie:
+  expiry_days: 30
+  key: random_signature_key
+  name: random_cookie_name
+preauthorized:
+  emails:
+  - rahman99invest@gmail.com
