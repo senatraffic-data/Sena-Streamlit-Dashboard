@@ -191,9 +191,20 @@ def show_content(authenticator, name, date_format):
             submit_button = st.form_submit_button("Submit")
             
             if submit_button:
-                query_1 = '''SELECT *
+                
+                if len(selected_road) != 1:
+                     query_1 = f'''SELECT *
                              FROM dim_camera_states AS t1
-                             ;'''    
+                             WHERE address IN {tuple(selected_road)}
+                             ;'''
+                elif len(selected_road) == 1:
+                    query_1 = f'''SELECT *
+                             FROM dim_camera_states AS t1
+                             WHERE address = '{selected_road[0]}'
+                             ;'''
+                else:
+                    raise ValueError
+                    
                 dim_camera = sql_to_df(HOST_NAME, USER_NAME, USER_PASSWORD, DB_NAME, query_1)
                 
                 hourly_datetime = pd.date_range(start=selected_datetime[0], end=selected_datetime[-1], freq='H').strftime(date_format)
@@ -211,10 +222,37 @@ def show_content(authenticator, name, date_format):
 
     st.write("Streamlit version:", st.__version__)
 
-    st.title('(Development) Traffic Web Dashboard')
-
+    st.title('Traffic Dashboard')
+    
+    st.header('Overall Metrics')
+    total_num_events = fact_events.shape[0]
+    event_count_by_event_type = fact_events.groupby('event_type')['camera_id'].count()
+    available_events = list(event_count_by_event_type.index)
+    num_of_available_events = len(available_events)
+    event_count_values = event_count_by_event_type.values
+    
+    st.metric(label='Total Number of Events', value=total_num_events)
+    
+    event_columns = st.columns(num_of_available_events)
+    
+    for i, (event_name, event_count) in enumerate(zip(available_events, event_count_values)):
+        event_columns[i].metric(label=event_name, value=event_count)
+    
+    confidence_by_event_type = fact_events.groupby('event_type')['confidence'].mean().dropna()
+    event_with_confidence = list(confidence_by_event_type.index)
+    confidence_values = confidence_by_event_type.values
+    num_of_events_with_confidence = len(event_with_confidence)
+    
+    confidence_columns = st.columns(num_of_events_with_confidence)
+    
+    for i, (event_name, event_confidence) in enumerate(zip(event_with_confidence, confidence_values)):
+        confidence_columns[i].metric(label=f'**{event_name}** Detection Confidence', 
+                                     value=f'{event_confidence * 100 : .2f} %')
+    
     st.header('Important Streets')
+    
     left_column_1, right_column_1 = st.columns(2)
+    
     with left_column_1:
         st.subheader('Hot-Spot Streets')
         st.write(df_hotspot_streets)
@@ -222,13 +260,13 @@ def show_content(authenticator, name, date_format):
         st.subheader('In-Out KL Streets')
         st.write(df_in_out_kl)
 
-    st.subheader('Cameras In Selected Road')
+    st.header('Cameras In Selected Road')
     try:
-        st.write(dim_camera[dim_camera['address'].isin(selected_road)])
+        st.write(dim_camera)
     except NameError:
         st.write(NO_DATA_MESSAGE)
 
-    st.subheader('Raw Event Data')
+    st.header('Raw Event Data')
     try:
         st.write(fact_events)
         st.download_button(label="Download data as CSV",
