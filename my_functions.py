@@ -260,11 +260,13 @@ def show_content(authenticator, name, date_format):
         st.subheader('In-Out KL Streets')
         st.write(df_in_out_kl)
 
+
     st.header('Cameras In Selected Road')
     try:
         st.write(dim_camera)
     except NameError:
         st.write(NO_DATA_MESSAGE)
+
 
     st.header('Raw Event Data')
     try:
@@ -276,21 +278,22 @@ def show_content(authenticator, name, date_format):
     except NameError:
         st.write(NO_DATA_MESSAGE)
     
+    
     st.header('Event Counts per Camera ID')
     try:
         event_count_by_cam = pd.crosstab(fact_events['camera_id'], fact_events['event_type'])
         st.write(event_count_by_cam)
-    except NameError:
-        st.write(NO_DATA_MESSAGE)
         
-    left_column_2, right_column_2 = st.columns(2)
-    try:
+        left_column_2, right_column_2 = st.columns(2)
+        
         with left_column_2:
             st.bar_chart(fact_events['camera_id'].value_counts(dropna=False))
         with right_column_2:
             plt.style.use('dark_background')
             fig, ax = plt.subplots(1, 1)
-            event_count_by_cam.plot(kind='barh', stacked=True, ax=ax)
+            event_count_by_cam.plot(kind='barh', 
+                                    stacked=True, 
+                                    ax=ax)
             st.pyplot(fig)
         
         event_count_string = 'Event Counts'
@@ -305,35 +308,64 @@ def show_content(authenticator, name, date_format):
     except NameError:
         st.write(NO_DATA_MESSAGE)
         
+        
     st.header('Event Counts per Lane/Zone Treemap')
     try:
         event_count_by_zone_lane = fact_events.groupby(['event_type', 'zone'], as_index=False).agg({'camera_id': 'count'})
         treemap_fig = px.treemap(event_count_by_zone_lane,
                                  path=[event_count_by_zone_lane['event_type'], event_count_by_zone_lane['zone']],
                                  values=event_count_by_zone_lane['camera_id'],
-                                 title='Event Counts Treemap by Lanes',
                                  width=500,
                                  height=750)
         st.plotly_chart(treemap_fig, use_container_width=True)
+        st.write(event_count_by_zone_lane)
     except NameError:
         st.write(NO_DATA_MESSAGE)
-            
+
+
     st.header('Event Count By Lanes')
     try:
-        event_count_by_lane = pd.crosstab(fact_events['zone'], fact_events['event_type'])
-        fig_count_by_lane, ax_count_by_lane = plt.subplots(1, 1)
-        event_count_by_lane.plot(kind='barh', stacked=True, ax=ax_count_by_lane)
-        st.pyplot(fig_count_by_lane)    
+        b2t_lane_filter = fact_events['zone'].str.startswith('b2t')
+        t2b_lane_filter = fact_events['zone'].str.startswith('t2b')
         
-        plotly_fig_event_count_by_lane = px.bar(event_count_by_lane, 
-                                                orientation='v')
-        st.plotly_chart(plotly_fig_event_count_by_lane, 
-                        use_container_width=True,
-                        sharing="streamlit", 
-                        theme=None)
+        b2t_events  =fact_events.loc[b2t_lane_filter]
+        t2b_events = fact_events.loc[t2b_lane_filter]
+        
+        b2t_event_count_by_lane = pd.crosstab(b2t_events['zone'], b2t_events['event_type'])
+        t2b_event_count_by_lane = pd.crosstab(t2b_events['zone'], t2b_events['event_type'])
+        
+        fig_event_count_by_lane, ax_event_count_by_lane = plt.subplots(1, 2)
+        
+        b2t_event_count_by_lane.plot(kind='bar', 
+                                     stacked=True, 
+                                     ax=ax_event_count_by_lane[0])
+        t2b_event_count_by_lane.plot(kind='bar', 
+                                     stacked=True, 
+                                     ax=ax_event_count_by_lane[1])
+        plt.tight_layout()
+        st.pyplot(fig_event_count_by_lane)
+        
+        by_lane_1, by_lane_2 = st.columns(2)
+            
+        with by_lane_1:
+            plotly_fig_event_count_by_lane_b2t = px.bar(b2t_event_count_by_lane, 
+                                                    orientation='v')
+            st.plotly_chart(plotly_fig_event_count_by_lane_b2t, 
+                            use_container_width=True,
+                            sharing="streamlit", 
+                            theme=None)
+            
+        with by_lane_2:
+            plotly_fig_event_count_by_lane_t2b = px.bar(t2b_event_count_by_lane, 
+                                                    orientation='v')
+            st.plotly_chart(plotly_fig_event_count_by_lane_t2b, 
+                            use_container_width=True,
+                            sharing="streamlit", 
+                            theme=None)
     except NameError:
         st.write(NO_DATA_MESSAGE)
-        
+
+
     st.header('Event Detection Confidence by Event Type and Item Type')
     try:
         confidence = pd.crosstab(fact_events['event_type'], 
@@ -342,11 +374,21 @@ def show_content(authenticator, name, date_format):
                                  aggfunc=np.mean)
         
         fig_confidence, ax_confidence = plt.subplots(1, 1)
-        confidence.plot(kind='bar', 
-                        stacked=False, 
-                        ax=ax_confidence)
-        ax_confidence.set_xticklabels(confidence.index, rotation=0)
-        ax_confidence.legend(loc="best")
+        confidence_plot = confidence.plot(kind='barh', 
+                                          stacked=False, 
+                                          ax=ax_confidence)
+        ax_confidence.set_yticklabels(confidence.index, rotation=0)
+        ax_confidence.legend(loc="upper left")
+        
+        for i in confidence_plot.containers:
+            labels = [f'{val:.2f}' if val > 0 else '' for val in i.datavalues]
+            ax_confidence.bar_label(i, 
+                                    label_type='edge', 
+                                    labels=labels, 
+                                    fontsize=10, 
+                                    padding=3)
+            
+        plt.tight_layout()
         st.pyplot(fig_confidence)
         
         confidence_index_resetted = confidence.reset_index()
@@ -361,7 +403,8 @@ def show_content(authenticator, name, date_format):
                         theme=None)
     except NameError:
         st.write(NO_DATA_MESSAGE)
-    
+
+
     st.header('Hourly Detection Confidence')
     try:
         fact_events['datetime'] = pd.to_datetime(fact_events['datetime'])
@@ -371,7 +414,10 @@ def show_content(authenticator, name, date_format):
                                                        aggfunc={'confidence': np.mean})
         df_hourly_confidence = df_hourly_confidence.asfreq('H')
         df_hourly_confidence = df_hourly_confidence.ffill().rolling(3).mean()
-        df_hourly_confidence.columns = ['Illegal Stop', 'Person on Lane']
+        
+        previous_columns = list(df_hourly_confidence.columns)
+        new_columns = [multi_column[-1] for multi_column in previous_columns]
+        df_hourly_confidence.columns = new_columns
         df_hourly_confidence.index.name = ""
         
         fig_hourly_confidence, ax_hourly_confidence = plt.subplots(1, 1)
@@ -379,7 +425,7 @@ def show_content(authenticator, name, date_format):
                                   title=r'Hourly Detection Confidence by Event Type',
                                   ax=ax_hourly_confidence,
                                   ylabel='Confidence')
-        st.pyplot(fig_hourly_confidence)   
+        st.pyplot(fig_hourly_confidence)
         
         plotly_fig_hourly_confidence = px.line(df_hourly_confidence)
         plotly_fig_hourly_confidence.update_layout(yaxis_title="Confidence")
@@ -389,7 +435,8 @@ def show_content(authenticator, name, date_format):
                         theme=None)
     except NameError:
         st.write(NO_DATA_MESSAGE)
-        
+
+
     st.header('Hourly Event Count by Event Type')
     try:
         # with congestion event
@@ -410,85 +457,78 @@ def show_content(authenticator, name, date_format):
         df_hourly_event_count_out = df_hourly_event_count_out.asfreq('H')
         df_hourly_event_count_out = df_hourly_event_count_out.ffill()
         df_hourly_event_count_out.index.name = ''
+          
+        if ( selected_dest == ['IN', 'OUT'] ) or ( selected_dest == ['OUT', 'IN'] ):
+            in_column, out_column = st.columns(2)
             
-        # separate columns for each IN and OUT
-        hourly_in, hourly_out = st.columns(2)
-        if selected_dest == ['IN']:
-            with hourly_in:
+            with in_column:
                 fig_hourly_in, ax_hourly_in = plt.subplots(1, 1)
                 df_hourly_event_count_in.plot(kind='line',
                                             title='Inbound',
                                             ax=ax_hourly_in,
                                             ylabel=event_count_string)
                 st.pyplot(fig_hourly_in)
-        elif selected_dest == ['OUT']:
-            with hourly_out:
+                
+                plotly_fig_hourly_count_in = px.line(df_hourly_event_count_in, 
+                                                    template="plotly_dark", 
+                                                    title='IN-bound')
+                plotly_fig_hourly_count_in.update_layout(yaxis_title=event_count_string)
+                st.plotly_chart(plotly_fig_hourly_count_in, 
+                                use_container_width=True,
+                                sharing="streamlit", 
+                                theme=None)
+            
+            with out_column:
                 fig_hourly_out, ax_hourly_out = plt.subplots(1, 1)
                 df_hourly_event_count_out.plot(kind='line',
                                             title='Outbound',
                                             ax=ax_hourly_out)
                 st.pyplot(fig_hourly_out)
-        elif ( selected_dest == ['IN', 'OUT'] ) or ( selected_dest == ['OUT', 'IN'] ):
-            with hourly_in:
-                fig_hourly_in, ax_hourly_in = plt.subplots(1, 1)
-                df_hourly_event_count_in.plot(kind='line',
-                                              title='Inbound',
-                                              ax=ax_hourly_in,
-                                              ylabel=event_count_string)
-                st.pyplot(fig_hourly_in)
-            with hourly_out:
-                fig_hourly_out, ax_hourly_out = plt.subplots(1, 1)
-                df_hourly_event_count_out.plot(kind='line',
-                                               title='Outbound',
-                                               ax=ax_hourly_out)
-                st.pyplot(fig_hourly_out)
+                
+                plotly_fig_hourly_count_out = px.line(df_hourly_event_count_out,
+                                                    template="plotly_dark",
+                                                    title='OUT-bound')
+                plotly_fig_hourly_count_out.update_layout(yaxis_title='')
+                st.plotly_chart(plotly_fig_hourly_count_out,
+                                use_container_width=True,
+                                sharing="streamlit",
+                                theme=None)
+        elif selected_dest == ['IN']:
+            fig_hourly_in, ax_hourly_in = plt.subplots(1, 1)
+            df_hourly_event_count_in.plot(kind='line',
+                                          title='Inbound',
+                                          ax=ax_hourly_in,
+                                          ylabel=event_count_string)
+            st.pyplot(fig_hourly_in)
+            
+            plotly_fig_hourly_count_in = px.line(df_hourly_event_count_in, 
+                                                 template="plotly_dark", 
+                                                 title='IN-bound')
+            plotly_fig_hourly_count_in.update_layout(yaxis_title=event_count_string)
+            st.plotly_chart(plotly_fig_hourly_count_in, 
+                            use_container_width=True,
+                            sharing="streamlit", 
+                            theme=None)
+        elif selected_dest == ['OUT']:
+            fig_hourly_out, ax_hourly_out = plt.subplots(1, 1)
+            df_hourly_event_count_out.plot(kind='line',
+                                        title='Outbound',
+                                        ax=ax_hourly_out)
+            st.pyplot(fig_hourly_out)
+            
+            plotly_fig_hourly_count_out = px.line(df_hourly_event_count_out,
+                                                template="plotly_dark",
+                                                title='OUT-bound')
+            plotly_fig_hourly_count_out.update_layout(yaxis_title='')
+            st.plotly_chart(plotly_fig_hourly_count_out,
+                            use_container_width=True,
+                            sharing="streamlit",
+                            theme=None)
         else:
             print('ERROR')
-                
-        hourly_in_plotly, hourly_out_plotly = st.columns(2)
-        if selected_dest == ['IN']:
-            with hourly_in_plotly:
-                plotly_fig_hourly_count_in = px.line(df_hourly_event_count_in, 
-                                                    template="plotly_dark", 
-                                                    title='IN-bound')
-                plotly_fig_hourly_count_in.update_layout(yaxis_title=event_count_string)
-                st.plotly_chart(plotly_fig_hourly_count_in, 
-                                use_container_width=True,   
-                                sharing="streamlit", 
-                                theme=None)
-        elif selected_dest == ['OUT']:
-            with hourly_out_plotly:
-                plotly_fig_hourly_count_out = px.line(df_hourly_event_count_out, 
-                                                    template="plotly_dark",
-                                                    title='OUT-bound')
-                plotly_fig_hourly_count_out.update_layout(yaxis_title='')
-                st.plotly_chart(plotly_fig_hourly_count_out, 
-                                use_container_width=True,
-                                sharing="streamlit", 
-                                theme=None)
-        elif ( selected_dest == ['IN', 'OUT'] ) or ( selected_dest == ['OUT', 'IN'] ):
-            with hourly_in_plotly:
-                plotly_fig_hourly_count_in = px.line(df_hourly_event_count_in, 
-                                                    template="plotly_dark", 
-                                                    title='IN-bound')
-                plotly_fig_hourly_count_in.update_layout(yaxis_title=event_count_string)
-                st.plotly_chart(plotly_fig_hourly_count_in, 
-                                use_container_width=True,   
-                                sharing="streamlit", 
-                                theme=None)
-            with hourly_out_plotly:
-                plotly_fig_hourly_count_out = px.line(df_hourly_event_count_out, 
-                                                    template="plotly_dark",
-                                                    title='OUT-bound')
-                plotly_fig_hourly_count_out.update_layout(yaxis_title='')
-                st.plotly_chart(plotly_fig_hourly_count_out, 
-                                use_container_width=True,
-                                sharing="streamlit", 
-                                theme=None)
-        
     except NameError:
         st.write(NO_DATA_MESSAGE)
-        
+
 
 def show_content_second_page(authenticator, host_name, user_name, user_password, db_name):
     authenticator.logout('Logout', 'main')
