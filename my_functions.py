@@ -932,53 +932,56 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
         
     st.header('Heat Map')
     
-    merged_metrics_camera = df_volume_speed.merge(dim_camera, 
-                                                  how='left', 
-                                                  on='camera_id')
-    groupby_cameras = merged_metrics_camera\
-                      .groupby(['camera_id', 'latitude', 'longitude'])\
-                      .agg({'LOS': np.mean})
-    groupby_cameras_index_resetted = groupby_cameras.reset_index()
-    subsetted_1 = groupby_cameras_index_resetted[['camera_id', 'latitude', 'longitude', 'LOS']].dropna()
-    subsetted = subsetted_1[['latitude', 'longitude', 'LOS']]
-    camera_ids = subsetted_1['camera_id'].values
-    
-    # Define the center of the map
-    center = subsetted.values[0, 0: 2]
-
-    # Create a folium map
-    m = folium.Map(location=center, 
-                   zoom_start=12, 
-                   tiles='OpenStreetMap')
-    # Add the updated layer to the map
-    layer = folium.FeatureGroup(name='Updated Layer')
-
-    # Add coordinates to the layer
-    coordinates = np.array(subsetted.values, dtype=np.float64)
-    
-    # Define a color map
-    min_los = np.nanmin(coordinates[: , -1])
-    median_los = np.nanmedian(coordinates[: , -1])
-    max_los = np.nanmax(coordinates[: , -1])
-    index = [min_los, median_los, max_los]
-    index_sorted = sorted(index)
-    colormap = LinearColormap(colors=['green', 'yellow', 'red'], 
-                              index=index_sorted, 
-                              vmin=0.0, 
-                              vmax=150.0)
+    try:
+        merged_metrics_camera = df_volume_speed.merge(dim_camera, 
+                                                    how='left', 
+                                                    on='camera_id')
+        groupby_cameras = merged_metrics_camera\
+                        .groupby(['camera_id', 'latitude', 'longitude'])\
+                        .agg({'LOS': np.mean})
+        groupby_cameras_index_resetted = groupby_cameras.reset_index()
+        subsetted_1 = groupby_cameras_index_resetted[['camera_id', 'latitude', 'longitude', 'LOS']].dropna()
+        subsetted = subsetted_1[['latitude', 'longitude', 'LOS']]
+        camera_ids = subsetted_1['camera_id'].values
         
-    # Add bubbles to the layer with color based on value
-    for cam_id, coord in zip(camera_ids, coordinates):
-        radius = coord[-1] # Use the value as the radius
-        folium.CircleMarker(location=coord[0: 2], 
-                            radius=radius, 
-                            color=colormap(coord[-1]),
-                            fill=True, 
-                            fill_color=colormap(coord[-1]),
-                            tooltip=f'<b>Camera ID: {cam_id} | LOS %: {coord[-1]: .2f}</b>').add_to(layer)
+        # Define the center of the map
+        center = subsetted.values[0, 0: 2]
 
-    # Add the layer to the map
-    layer.add_to(m)
+        # Create a folium map
+        m = folium.Map(location=center, 
+                    zoom_start=12, 
+                    tiles='OpenStreetMap')
+        # Add the updated layer to the map
+        layer = folium.FeatureGroup(name='Updated Layer')
 
-    # Display the map in Streamlit
-    folium_static(m)
+        # Add coordinates to the layer
+        coordinates = np.array(subsetted.values, dtype=np.float64)
+        
+        # Define a color map
+        min_los = np.nanmin(coordinates[: , -1])
+        median_los = np.nanmedian(coordinates[: , -1])
+        max_los = np.nanmax(coordinates[: , -1])
+        index = [min_los, median_los, max_los]
+        index_sorted = sorted(index)
+        colormap = LinearColormap(colors=['green', 'yellow', 'red'], 
+                                index=index_sorted, 
+                                vmin=0.0, 
+                                vmax=150.0)
+            
+        # Add bubbles to the layer with color based on value
+        for cam_id, coord in zip(camera_ids, coordinates):
+            radius = coord[-1] # Use the value as the radius
+            folium.CircleMarker(location=coord[0: 2], 
+                                radius=radius, 
+                                color=colormap(coord[-1]),
+                                fill=True, 
+                                fill_color=colormap(coord[-1]),
+                                tooltip=f'<b>Camera ID: {cam_id} | LOS %: {coord[-1]: .2f}</b>').add_to(layer)
+
+        # Add the layer to the map
+        layer.add_to(m)
+
+        # Display the map in Streamlit
+        folium_static(m)
+    except:
+        st.write(DATA_NOT_QUERIED_YET)
