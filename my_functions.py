@@ -691,56 +691,66 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
     
     st.subheader('Vehicle Count')
     
-    minimum_car_count = int(df_volume_speed['car_count'].min())
-    average_car_count = int(df_volume_speed['car_count'].mean())
-    maximum_car_count = int(df_volume_speed['car_count'].max())
-    
-    car_column_1, car_column_2 , car_column_3 = st.columns(3)
-    
-    with car_column_1:
-        st.metric(label='Minimum Car Count', value=minimum_car_count)
+    try: 
+        minimum_car_count = int(df_volume_speed['car_count'].min())
+        average_car_count = int(df_volume_speed['car_count'].mean())
+        maximum_car_count = int(df_volume_speed['car_count'].max())
         
-    with car_column_2:
-        st.metric(label='Average Car Count', value=average_car_count)
+        car_column_1, car_column_2 , car_column_3 = st.columns(3)
         
-    with car_column_3:
-        st.metric(label='Maximum Car Count', value=maximum_car_count)
-    
-    descriptions = df_volume_speed.describe()
-    
+        with car_column_1:
+            st.metric(label='Minimum Car Count', value=minimum_car_count)
+            
+        with car_column_2:
+            st.metric(label='Average Car Count', value=average_car_count)
+            
+        with car_column_3:
+            st.metric(label='Maximum Car Count', value=maximum_car_count)
+    except:
+        st.write(DATA_NOT_QUERIED_YET)
+        
     st.subheader('Lane Speed (km/h)')
-    minimum_lane_speed  = round(descriptions.loc['min', 'lane_speed'], 2)
-    average_lane_speed = round(descriptions.loc['mean', 'lane_speed'], 2)
-    max_lane_speed = round(descriptions.loc['max', 'lane_speed'], 2)
     
-    minimum_lane_speed_column, mean_lane_speed_column, max_lane_speed_column = st.columns(3)
-    
-    with minimum_lane_speed_column:
-        st.metric(label='Minimum Lane Speed', value=minimum_lane_speed)
-    
-    with mean_lane_speed_column:
-        st.metric(label='Average Lane Speed', value=average_lane_speed)
-    
-    with max_lane_speed_column:
-        st.metric(label='Maximum Lane Speed', value=max_lane_speed)
-    
+    try:
+        descriptions = df_volume_speed.describe()
+        minimum_lane_speed  = round(descriptions.loc['min', 'lane_speed'], 2)
+        average_lane_speed = round(descriptions.loc['mean', 'lane_speed'], 2)
+        max_lane_speed = round(descriptions.loc['max', 'lane_speed'], 2)
+        
+        minimum_lane_speed_column, mean_lane_speed_column, max_lane_speed_column = st.columns(3)
+        
+        with minimum_lane_speed_column:
+            st.metric(label='Minimum Lane Speed', value=minimum_lane_speed)
+        
+        with mean_lane_speed_column:
+            st.metric(label='Average Lane Speed', value=average_lane_speed)
+        
+        with max_lane_speed_column:
+            st.metric(label='Maximum Lane Speed', value=max_lane_speed)
+    except:
+        st.write(DATA_NOT_QUERIED_YET)
+        
     st.subheader('LOS (%)')
-    minimum_los = round(descriptions.loc['min', 'LOS'], 4)
-    average_los = round(descriptions.loc['mean', 'LOS'], 4)
-    max_los = round(descriptions.loc['max', 'LOS'], 4)
     
-    minimum_los_column, mean_los_column, max_los_column = st.columns(3)
-    
-    with minimum_los_column:
-        st.metric(label='Minimum LOS', value=minimum_los)
-    
-    with mean_los_column:
-        st.metric(label='Average LOS', value=average_los)
+    try:
+        minimum_los = round(descriptions.loc['min', 'LOS'], 4)
+        average_los = round(descriptions.loc['mean', 'LOS'], 4)
+        max_los = round(descriptions.loc['max', 'LOS'], 4)
+        
+        minimum_los_column, mean_los_column, max_los_column = st.columns(3)
+        
+        with minimum_los_column:
+            st.metric(label='Minimum LOS', value=minimum_los)
+        
+        with mean_los_column:
+            st.metric(label='Average LOS', value=average_los)
 
-    with max_los_column:
-        st.metric(label='Maximum LOS', value=max_los)
-
-
+        with max_los_column:
+            st.metric(label='Maximum LOS', value=max_los)
+    except:
+        st.write(DATA_NOT_QUERIED_YET)
+        
+        
     st.header('Raw Data')
 
     st.subheader('Cameras In Selected Road')
@@ -775,13 +785,12 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
     st.header('Hourly Vehicle Count')
     try:
         df_hourly_car_count = df_volume_speed.pivot_table(values=['car_count'],
-                                                        index=['datetime'],
-                                                        columns=['POV'])
-            
-        fig_car_count, ax_car_count = plt.subplots(1, 1)
+                                                          index=['datetime'],
+                                                          columns=['POV'])
         df_hourly_car_count.index.name = ""
         df_hourly_car_count.columns = ['b2t', 't2b']
-
+        
+        fig_car_count, ax_car_count = plt.subplots(1, 1)
         df_hourly_car_count.plot(kind='line',
                                 title=r'Hourly Car Count (b2t & t2b)',
                                 ax=ax_car_count,
@@ -790,8 +799,8 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
         st.pyplot(fig_car_count)
             
         plotly_fig_hourly_car_count = px.line(df_hourly_car_count, 
-                                            template="plotly_dark", 
-                                            title='Hourly Car Count')
+                                              template="plotly_dark", 
+                                              title='Hourly Car Count')
         plotly_fig_hourly_car_count.update_layout(yaxis_title='Car Count')
         st.plotly_chart(plotly_fig_hourly_car_count, 
                         use_container_width=True,   
@@ -800,7 +809,9 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
     except:
         st.write(DATA_NOT_QUERIED_YET)
         
+        
     st.header('Hourly LOS% Plot for Inbound & Outbound')
+    
     try:
         df_hourly_los.index.name = ""
         
@@ -823,14 +834,13 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
     except:
         st.write(DATA_NOT_QUERIED_YET)
 
-    st.header('Testing')
+
+    st.header('Time-Series Model Testing')
 
     try:
         st.write(forecaster.summary())
-        
         st.write(f'The testing MAPE is {metrics[0]}')
         st.write(f'The testing MSE is {metrics[1]}')
-            
         st.write(y_s[2])
 
         fig_forecast, ax_forecast = plt.subplots(1, 1)
@@ -842,79 +852,96 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
                     ax=ax_forecast)
         y_s[2].plot(kind='line', 
                     ax=ax_forecast)
-        plt.fill_between(y_s[3].index, 
-                        y_s[3].loc[: , ('Coverage', 0.9, 'lower')], 
-                        y_s[3].loc[: , ('Coverage', 0.9, 'upper')],
-                        alpha=0.25)
+        plt.fill_between(y_s[3].index,
+                         y_s[3].loc[: , ('Coverage', 0.9, 'lower')],
+                         y_s[3].loc[: , ('Coverage', 0.9, 'upper')],
+                         alpha=0.25)
         ax_forecast.legend()
-        # plt.tight_layout()
+        plt.tight_layout()
         st.pyplot(fig_forecast)
             
-        plotly_fig_hourly_los_train_test = px.line(y_s[4], 
-                                                template="plotly_dark", 
-                                                title=r'Hourly LOS% For Train, Testing, and Prediction')
+        plotly_fig_hourly_los_train_test = px.line(y_s[4],
+                                                   template="plotly_dark",
+                                                   title=r'Hourly LOS% For Train, Testing, and Prediction')
         plotly_fig_hourly_los_train_test.update_layout(yaxis_title='LOS%')
-        st.plotly_chart(plotly_fig_hourly_los_train_test, 
-                        use_container_width=True,   
-                        sharing="streamlit", 
+        st.plotly_chart(plotly_fig_hourly_los_train_test,
+                        use_container_width=True,
+                        sharing="streamlit",
                         theme=None)
             
         col1, col2, col3 = st.columns(3)
+        
         with col1:
+            st.write('Testing Data')
             st.write(y_s[1])
+            
         with col2:
+            st.write('Predictions')
             st.write(y_s[2])
+            
         with col3:
+            st.write('Confidence Interval')
             st.write(y_s[3])
     except:
         st.write(DATA_NOT_QUERIED_YET)
-        
+
+
     st.header('Forecasting')
+
     try:
         fig_forecast_alt, ax_forecast_alt = plt.subplots(1, 1)
         y_s[-1].plot(kind='line',
-                        ax=ax_forecast_alt,
-                        title=r'Hourly LOS% For Observed Data & Forecast',
-                        ylabel='LOS %')
+                     ax=ax_forecast_alt,
+                     title=r'Hourly LOS% For Observed Data & Forecast',
+                     ylabel='LOS %')
         y_s[5].plot(kind='line',
-                        ax=ax_forecast_alt)
-        plt.fill_between(y_s[6].index, 
-                        y_s[6].loc[: , ('Coverage', 0.9, 'lower')], 
-                        y_s[6].loc[: , ('Coverage', 0.9, 'upper')],
-                        alpha=0.25)
+                    ax=ax_forecast_alt)
+        plt.fill_between(y_s[6].index,
+                         y_s[6].loc[: , ('Coverage', 0.9, 'lower')],
+                         y_s[6].loc[: , ('Coverage', 0.9, 'upper')],
+                         alpha=0.25)
         ax_forecast_alt.legend()
-        # plt.tight_layout()
+        plt.tight_layout()
         st.pyplot(fig_forecast_alt)
         
         plotly_fig_hourly_los_forecast = px.line(y_s[7], 
-                                                template="plotly_dark", 
-                                                title=r'Hourly LOS% For Observed Data & Forecast')
+                                                 template="plotly_dark",
+                                                 title=r'Hourly LOS% For Observed Data & Forecast')
         plotly_fig_hourly_los_forecast.update_layout(yaxis_title='LOS%')
-        st.plotly_chart(plotly_fig_hourly_los_forecast, 
-                        use_container_width=True,   
-                        sharing="streamlit", 
+        st.plotly_chart(plotly_fig_hourly_los_forecast,
+                        use_container_width=True,
+                        sharing="streamlit",
                         theme=None)
         
         col1_alt, col2_alt, col3_alt = st.columns(3)
+        
         with col1_alt:
+            st.write('All Observed Data')
             st.write(y_s[-1])
-        with col2_alt:
-            st.write(y_s[5])
-        with col3_alt:
-            st.write(y_s[6])
             
+        with col2_alt:
+            st.write('Forecasted Values')
+            st.write(y_s[5])
+            
+        with col3_alt:
+            st.write('Confidence Interval')
+            st.write(y_s[6])
     except:
         st.write(DATA_NOT_QUERIED_YET)
+        
         
     st.header('Heat Map')
     
     merged_metrics_camera = df_volume_speed.merge(dim_camera, 
-                                                how='left', 
-                                                on='camera_id')
-    
-    groupby_cameras = merged_metrics_camera.groupby(['camera_id', 'latitude', 'longitude']).agg({'LOS': np.mean})
+                                                  how='left', 
+                                                  on='camera_id')
+    groupby_cameras = merged_metrics_camera\
+                      .groupby(['camera_id', 'latitude', 'longitude'])\
+                      .agg({'LOS': np.mean})
     groupby_cameras_index_resetted = groupby_cameras.reset_index()
-    subsetted = groupby_cameras_index_resetted[['latitude', 'longitude', 'LOS']].dropna()
+    subsetted_1 = groupby_cameras_index_resetted[['camera_id', 'latitude', 'longitude', 'LOS']].dropna()
+    subsetted = subsetted_1[['latitude', 'longitude', 'LOS']]
+    camera_ids = subsetted_1['camera_id'].values
     
     # Define the center of the map
     center = subsetted.values[0, 0: 2]
@@ -923,7 +950,6 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
     m = folium.Map(location=center, 
                    zoom_start=12, 
                    tiles='OpenStreetMap')
-
     # Add the updated layer to the map
     layer = folium.FeatureGroup(name='Updated Layer')
 
@@ -934,23 +960,22 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
     min_los = np.nanmin(coordinates[: , -1])
     median_los = np.nanmedian(coordinates[: , -1])
     max_los = np.nanmax(coordinates[: , -1])
-    
     index = [min_los, median_los, max_los]
     index_sorted = sorted(index)
-    
     colormap = LinearColormap(colors=['green', 'yellow', 'red'], 
                               index=index_sorted, 
                               vmin=0.0, 
                               vmax=150.0)
         
     # Add bubbles to the layer with color based on value
-    for coord in coordinates:
-        radius = coord[2] # Use the value as the radius
-        folium.CircleMarker(location=coord[:2], 
+    for cam_id, coord in zip(camera_ids, coordinates):
+        radius = coord[-1] # Use the value as the radius
+        folium.CircleMarker(location=coord[0: 2], 
                             radius=radius, 
-                            color=colormap(coord[2]),
+                            color=colormap(coord[-1]),
                             fill=True, 
-                            fill_color=colormap(coord[2])).add_to(layer)
+                            fill_color=colormap(coord[-1]),
+                            tooltip=f'Camera ID: {cam_id}, LOS %: {coord[-1]: .2f}').add_to(layer)
 
     # Add the layer to the map
     layer.add_to(m)
