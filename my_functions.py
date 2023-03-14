@@ -975,7 +975,7 @@ def show_content_second_page(authenticator, host_name, user_name, user_password,
                             color=colormap(coord[-1]),
                             fill=True, 
                             fill_color=colormap(coord[-1]),
-                            tooltip=f'Camera ID: {cam_id}, LOS %: {coord[-1]: .2f}').add_to(layer)
+                            tooltip=f'<b>Camera ID: {cam_id} | LOS %: {coord[-1]: .2f}</b>').add_to(layer)
 
     # Add the layer to the map
     layer.add_to(m)
