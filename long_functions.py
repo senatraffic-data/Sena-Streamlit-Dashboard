@@ -2,7 +2,7 @@ import streamlit as st
 
 
 @st.cache_data
-def generate_volume_speed_los(road_selections, destination_selections, hourly_datetime_tuple):
+def get_volume_speed_los_query(road_selections, destination_selections, hourly_datetime_tuple):
     if len(road_selections) == 1:
         
         if len(destination_selections) == 1:
@@ -204,7 +204,7 @@ def generate_volume_speed_los(road_selections, destination_selections, hourly_da
 
 
 @st.cache_data
-def generate_main_event_df(selected_dest, selected_road, hourly_datetime_tuple):
+def get_main_event_query(selected_dest, selected_road, hourly_datetime_tuple):
     if len(selected_dest) == 1:
                     
         if len(selected_road) == 1:
