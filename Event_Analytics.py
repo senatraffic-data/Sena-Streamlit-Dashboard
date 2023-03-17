@@ -11,7 +11,9 @@ if __name__ == '__main__':
     authenticator, name, authentication_status, username = authentication()
 
     if authentication_status:
-        display_event_analytics(authenticator, name, DATE_FORMAT)
+        display_event_analytics(authenticator, 
+                                name, 
+                                DATE_FORMAT)
         
         ## Use the below if-else block for a more personalized experience for different users (privilege based on username)
         ## Commented out for now

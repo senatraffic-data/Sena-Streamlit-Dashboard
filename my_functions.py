@@ -42,7 +42,7 @@ def get_data(host_name, db_name, user_name, user_password, query, trueness=True)
 # @st.cache_resource
 def create_connection(host_name, user_name, user_password, db_name):
     connection = None
-    
+
     try:
         connection = mysql.connector.connect(host=host_name,
                                              user=user_name,
@@ -51,13 +51,12 @@ def create_connection(host_name, user_name, user_password, db_name):
         print("Connection to MySQL DB successful")
     except Error as e:
         print(f"The error '{e}' occurred")
-        
+
     return connection
 
 
 def sql_to_df(host_name, user_name, user_password, db_name, query):
     connection = create_connection(host_name, user_name, user_password, db_name)
-
     cursor = connection.cursor()
     result = None
     column_names = None
@@ -81,10 +80,10 @@ def five_min_ly(time):
     minute_part = str(math.floor(time.minute / 5) * 5).zfill(2)
     hour_part = str(time.hour).zfill(2)
     modified_time = datetime.strptime(f'{hour_part}:{minute_part}', '%H:%M').time()
-    
+
     return modified_time
-    
-    
+
+
 def extract_hour(time):
     return time.hour
 
@@ -92,26 +91,34 @@ def extract_hour(time):
 def distinct_non_null_count(x):
     pandas_unique = pd.unique(x)
     unique_values = [element for element in pandas_unique if element != 'null']
-    
+
     return len(unique_values)
 
 
 @st.cache_data
-def get_fact_volume_speed(road_selections, destination_selections, host_name_main, user_name_main, user_password_main, db_name_main, selected_datetime_main):
+def get_fact_volume_speed(road_selections, 
+                          destination_selections, 
+                          host_name_main, 
+                          user_name_main, 
+                          user_password_main, 
+                          db_name_main, 
+                          selected_datetime_main):
     date_format = '%Y-%m-%d %H:%M:%S'
-    
-    hourly_datetime = pd.date_range(start=selected_datetime_main[0], end=selected_datetime_main[-1], freq='H').strftime(date_format)
+    hourly_datetime = pd.date_range(start=selected_datetime_main[0], 
+                                    end=selected_datetime_main[-1], 
+                                    freq='H').strftime(date_format)
     hourly_datetime_tuple = tuple(hourly_datetime)
-    
-    query = get_volume_speed_los_query(road_selections, destination_selections, hourly_datetime_tuple) 
+
+    query = get_volume_speed_los_query(road_selections, 
+                                       destination_selections, 
+                                       hourly_datetime_tuple) 
     fact_volume_speed = sql_to_df(host_name_main, 
                                   user_name_main,
                                   user_password_main, 
                                   db_name_main, 
                                   query)
-    
     fact_volume_speed['datetime'] = pd.to_datetime(fact_volume_speed['datetime'])
-    
+
     return fact_volume_speed
 
 
@@ -122,6 +129,7 @@ def df_to_csv(df):
 
 
 def authentication():
+
     with open('user_logins.yaml') as file:
         config = yaml.load(file, Loader=SafeLoader)
 
@@ -132,7 +140,7 @@ def authentication():
                                  config['preauthorized'])
 
     name, authentication_status, username = authenticator.login('Login', 'main')
-    
+
     return authenticator, name, authentication_status, username
 
 
@@ -145,11 +153,15 @@ def generate_hourly_datetime(date_format):
     today_minus_2_str = today_minus_2.strftime(HOURLY_DATE_FORMAT)
     hourly_date_range = pd.date_range(start=today_minus_2_str, end=today_str, freq='H').strftime(date_format)
     hourly_datetime_list = list(hourly_date_range)
-    
+
     return hourly_datetime_list, today_str, today_minus_2_str
 
 
-def get_filtered_cameras(selected_road, host_name, user_name, user_password, database_name):
+def get_filtered_cameras(selected_road,
+                         host_name,
+                         user_name,
+                         user_password,
+                         database_name):
 
     if len(selected_road) != 1:
         query_1 = f'''SELECT *
@@ -164,101 +176,111 @@ def get_filtered_cameras(selected_road, host_name, user_name, user_password, dat
     else:
         raise ValueError
 
-    dim_camera = sql_to_df(host_name, user_name, user_password, database_name, query_1)
+    dim_camera = sql_to_df(host_name,
+                           user_name,
+                           user_password,
+                           database_name,
+                           query_1)
 
     return dim_camera
 
 
-def get_fact_events_df(date_format, 
-                       selected_datetime, 
-                       selected_road, 
+def get_fact_events_df(date_format,
+                       selected_datetime,
+                       selected_road,
                        selected_dest,
-                       host_name, 
+                       host_name,
                        user_name,
-                       user_password, 
+                       user_password,
                        database_name):
-    hourly_datetime = pd.date_range(start=selected_datetime[0], 
-                                    end=selected_datetime[-1], 
+    hourly_datetime = pd.date_range(start=selected_datetime[0],
+                                    end=selected_datetime[-1],
                                     freq='H').strftime(date_format)
     hourly_datetime_tuple = tuple(hourly_datetime)
-    event_query = get_main_event_query(selected_dest, selected_road, hourly_datetime_tuple)
-    fact_events = sql_to_df(host_name, 
+
+    event_query = get_main_event_query(selected_dest, 
+                                       selected_road, 
+                                       hourly_datetime_tuple)
+    fact_events = sql_to_df(host_name,
                             user_name,
-                            user_password, 
-                            database_name, 
+                            user_password,
+                            database_name,
                             event_query)
-    
+
     return fact_events
-    
-    
+
+
 def display_event_analytics(authenticator, name, date_format):
     authenticator.logout('Logout', 'main')
-    
+
     NO_DATA_MESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
-    
+
     hourly_datetime_list, today_str, today_minus_2_str = generate_hourly_datetime(date_format)
-    
+
     st.write(f'Welcome *{name}*')
-    
+
     HOST_NAME = st.secrets.mysql.HOST_NAME
     USER_NAME = st.secrets.mysql.USER_NAME
     USER_PASSWORD = st.secrets.mysql.USER_PASSWORD
     DB_NAME = st.secrets.mysql.DB_NAME
+    DATA_PATH = os.path.join(os.getcwd(),
+                             'data',
+                             'Important_Roads.xlsx')
 
-    # to get 'important' roads
-    DATA_PATH = os.path.join(os.getcwd(), 'data', 'Important_Roads.xlsx')
     df_hotspot_streets = pd.read_excel(DATA_PATH, sheet_name='Hotspot Congestion')
     df_in_out_kl = pd.read_excel(DATA_PATH, sheet_name='InOut KL Traffic')
-
     available_roads = tuple(df_hotspot_streets['road'].values)
-    
+
     event_count_string = 'Event Counts'
 
     with st.sidebar:
-        
+
         with st.form(key='slicer'):
-            selected_road = st.multiselect('Which road you want to view?', available_roads, [available_roads[0]])
-            selected_datetime = st.select_slider('Timestamp', hourly_datetime_list, value=(today_minus_2_str, today_str))
-            selected_dest = st.multiselect('Inbound or Outbound of KL?', ['IN', 'OUT'], ['IN'])
-        
+            selected_road = st.multiselect('Which road you want to view?',
+                                            available_roads, 
+                                            [available_roads[0]])
+            selected_datetime = st.select_slider('Timestamp', 
+                                                  hourly_datetime_list,
+                                                  value=(today_minus_2_str, today_str))
+            selected_dest = st.multiselect('Inbound or Outbound of KL?',
+                                           ['IN', 'OUT'],
+                                           ['IN'])
             submit_button = st.form_submit_button("Submit")
-            
+
             if submit_button:
-                dim_camera = get_filtered_cameras(selected_road, 
-                                                  HOST_NAME, 
-                                                  USER_NAME, 
-                                                  USER_PASSWORD, 
+                dim_camera = get_filtered_cameras(selected_road,
+                                                  HOST_NAME,
+                                                  USER_NAME,
+                                                  USER_PASSWORD,
                                                   DB_NAME)
-                
-                fact_events = get_fact_events_df(date_format, 
-                                                 selected_datetime, 
-                                                 selected_road, 
+
+                fact_events = get_fact_events_df(date_format,
+                                                 selected_datetime,
+                                                 selected_road,
                                                  selected_dest,
-                                                 HOST_NAME, 
+                                                 HOST_NAME,
                                                  USER_NAME,
-                                                 USER_PASSWORD, 
+                                                 USER_PASSWORD,
                                                  DB_NAME)
-                
                 fact_events_csv = df_to_csv(fact_events)
 
     st.write("Streamlit version:", st.__version__)
 
     st.title('Traffic Dashboard')
-    
+
     try:
         display_overall_metrics(fact_events)
     except:
         st.write(NO_DATA_MESSAGE)
-    
+
     try:
-        display_streets_and_cameras(df_hotspot_streets, 
-                                    df_in_out_kl, 
+        display_streets_and_cameras(df_hotspot_streets,
+                                    df_in_out_kl,
                                     dim_camera)
     except:
         st.write(NO_DATA_MESSAGE)
-    
+
     st.header('Raw Event Data')
-    
     try:
         st.write(fact_events)
         st.download_button(label="Download data as CSV",
@@ -267,17 +289,17 @@ def display_event_analytics(authenticator, name, date_format):
                            mime='text/csv')
     except NameError:
         st.write(NO_DATA_MESSAGE)
-    
+
     try:
         display_event_count_by_camera_id(fact_events)
     except:
         st.write(NO_DATA_MESSAGE)
-    
+
     try:
         display_treemap(fact_events)
     except:
         st.write(NO_DATA_MESSAGE)
-    
+
     try:
         display_event_count_by_lane(fact_events)
     except:
@@ -299,12 +321,16 @@ def display_event_analytics(authenticator, name, date_format):
         st.write(NO_DATA_MESSAGE)
 
 
-def display_volume_speed_los_analytics(authenticator, host_name, user_name, user_password, db_name):
+def display_volume_speed_los_analytics(authenticator,
+                                       host_name,
+                                       user_name,
+                                       user_password,
+                                       db_name):
     authenticator.logout('Logout', 'main')
-    
+
     HOURLY_DATE_FORMAT = '%Y-%m-%d %H:00:00'
     hourly_datetime_list, today_str, today_minus_2_str = generate_hourly_datetime(HOURLY_DATE_FORMAT)
-    
+
     DATA_PATH = os.path.join(os.getcwd(), 'data', 'Important_Roads.xlsx')
     df_hotspot_streets = pd.read_excel(DATA_PATH, sheet_name='Hotspot Congestion')
     df_in_out_kl = pd.read_excel(DATA_PATH, sheet_name='InOut KL Traffic')
@@ -325,12 +351,12 @@ def display_volume_speed_los_analytics(authenticator, host_name, user_name, user
             submit_button = st.form_submit_button("Submit")
 
             if submit_button:
-                dim_camera = get_filtered_cameras(selected_road, 
-                                                  host_name, 
-                                                  user_name, 
-                                                  user_password, 
+                dim_camera = get_filtered_cameras(selected_road,
+                                                  host_name,
+                                                  user_name,
+                                                  user_password,
                                                   db_name)
-                
+
                 fact_volume_speed = get_fact_volume_speed(selected_road, 
                                                 selected_dest,
                                                 host_name, 
@@ -338,54 +364,52 @@ def display_volume_speed_los_analytics(authenticator, host_name, user_name, user
                                                 user_password, 
                                                 db_name, 
                                                 selected_datetime)
-                
                 fact_volume_speed_csv = df_to_csv(fact_volume_speed)
-            
+
                 df_hourly_los = get_hourly_los(fact_volume_speed, selected_dest)
-                
+
                 y_endogenous = df_hourly_los.loc[: , ['IN']]
                 y_endogenous.index.name = ""
                 y_endogenous.columns = ['Latest Observed Data']
-                
+
                 y_train, y_test = temporal_train_test_split(y_endogenous, test_size=0.3)
-    
+
                 y_train.index.name = ""
                 y_train.columns = ['Training Data']
-                
                 y_test.index.name = ""
                 y_test.columns = ['Test Data']
-                
+
                 y_pred, prediction_interval, y_combined, forecaster = get_predictions(y_train, y_test)
-                
+
                 last_observed_datetime = y_endogenous.index[-1]
                 offset_datetime = last_observed_datetime + timedelta(hours=1) 
                 date_range = pd.date_range(start=offset_datetime, 
                                            periods=hour_to_forecast, 
                                            freq='H')
-                
+
                 y_forecast, pred_int_forecast, y_combined_forecast = get_forecasts(forecaster, 
                                                                                    y_endogenous, 
                                                                                    date_range)
-                    
-                y_s = [y_train, y_test, 
-                       y_pred, prediction_interval, y_combined, 
+
+                y_s = [y_train, y_test,
+                       y_pred, prediction_interval, y_combined,
                        y_forecast, pred_int_forecast, y_combined_forecast,
                        y_endogenous]
-                
+
                 metrics = get_metrics(y_test, y_pred)
-                
+
     DATA_NOT_QUERIED_YET = 'Data not queried yet, nothing to display'
 
     st.title('Traffic Dashboard')
-    
+
     try:
         display_overall_volume_speed_metrics(fact_volume_speed)
     except:
         st.write(DATA_NOT_QUERIED_YET)
-    
+
     try:
-        display_streets_and_cameras(df_hotspot_streets, 
-                                    df_in_out_kl, 
+        display_streets_and_cameras(df_hotspot_streets,
+                                    df_in_out_kl,
                                     dim_camera)
     except:
         st.write(DATA_NOT_QUERIED_YET)
@@ -404,8 +428,8 @@ def display_volume_speed_los_analytics(authenticator, host_name, user_name, user
         display_hourly_vehicle_count(fact_volume_speed)
     except:
         st.write(DATA_NOT_QUERIED_YET)
-    
-    try:   
+
+    try:
         display_hourly_los_inbound_outbound(df_hourly_los)
     except:
         st.write(DATA_NOT_QUERIED_YET)
@@ -414,25 +438,32 @@ def display_volume_speed_los_analytics(authenticator, host_name, user_name, user
         display_timeseries_testing(forecaster, metrics, y_s)
     except:
         st.write(DATA_NOT_QUERIED_YET)
-    
+
     try:
         display_timeseries_forecasting(y_s)
     except:
         st.write(DATA_NOT_QUERIED_YET)
-    
+
     try:
         display_heatmap(fact_volume_speed, dim_camera)
     except:
         st.write(DATA_NOT_QUERIED_YET)
-        
-        
+
+
 def get_hourly_los(fact_volume_speed, selected_dest):
     df_hourly_los = fact_volume_speed.pivot_table(values=['LOS'],
                                                   index=['datetime'],
                                                   columns=['destination'])
     df_hourly_los = df_hourly_los.asfreq('H')
     df_hourly_los = df_hourly_los.ffill()
-                
+
+    df_hourly_los_conditioned = hourly_los_conditional(df_hourly_los, selected_dest)
+
+    return df_hourly_los_conditioned
+
+
+def hourly_los_conditional(df_hourly_los, selected_dest):
+
     if len(selected_dest) == 1:
 
         if df_hourly_los.shape[-1] == 1:
@@ -455,47 +486,47 @@ def get_hourly_los(fact_volume_speed, selected_dest):
 
     else:
         st.write('ERROR IN DESTINATION LENGTH')
-        
+
     return df_hourly_los
 
 
 def get_metrics(y_test, y_pred):
-    mape = mean_absolute_percentage_error(y_test, 
-                                          y_pred, 
+    mape = mean_absolute_percentage_error(y_test,
+                                          y_pred,
                                           symmetric=False)
-    mse = mean_squared_error(y_test, 
-                             y_pred, 
+    mse = mean_squared_error(y_test,
+                             y_pred,
                              squared=False)
-    
+
     return [mape, mse]
 
 
 def get_predictions(y_train, y_test):
     fh = ForecastingHorizon(y_test.index, is_relative=False)
-    
+
     forecaster = AutoARIMA()
     forecaster.fit(y_train)
 
     y_pred = forecaster.predict(fh=fh)
     y_pred.index.name = ""
     y_pred.columns = ['Prediction']
-    
+
     prediction_interval = forecaster.predict_interval(fh=fh)
-    
+
     y_combined = pd.concat([y_train, y_test, y_pred], axis=1)
-    
+
     return y_pred, prediction_interval, y_combined, forecaster
 
 
 def get_forecasts(forecaster, y_endogenous, date_range):
     fh_1 = ForecastingHorizon(date_range, is_relative=False)
-    
+
     y_forecast = forecaster.predict(fh=fh_1)
     y_forecast.index.name = ''
     y_forecast.columns = ['Forecast']
-    
+
     pred_int_forecast = forecaster.predict_interval(fh=fh_1)
-    
+
     y_combined_forecast = pd.concat([y_endogenous, y_forecast], axis=1)
-    
-    return y_forecast, pred_int_forecast, y_combined_forecast    
+
+    return y_forecast, pred_int_forecast, y_combined_forecast

@@ -17,47 +17,47 @@ from branca.colormap import LinearColormap
 
 def display_overall_metrics(fact_events):
     st.header('Overall Metrics')
-    
+
     total_num_events = fact_events.shape[0]
     event_count_by_event_type = fact_events.groupby('event_type')['camera_id'].count()
     available_events = list(event_count_by_event_type.index)
     num_of_available_events = len(available_events)
     event_count_values = event_count_by_event_type.values
-    
+
     st.metric(label='Total Number of Events', value=total_num_events)
-    
+
     event_columns = st.columns(num_of_available_events)
-    
+
     for i, (event_name, event_count) in enumerate(zip(available_events, event_count_values)):
         event_columns[i].metric(label=event_name, value=event_count)
-    
+
     confidence_by_event_type = fact_events.groupby('event_type')['confidence'].mean().dropna()
     event_with_confidence = list(confidence_by_event_type.index)
     confidence_values = confidence_by_event_type.values
     num_of_events_with_confidence = len(event_with_confidence)
-    
+
     confidence_columns = st.columns(num_of_events_with_confidence)
-    
+
     for i, (event_name, event_confidence) in enumerate(zip(event_with_confidence, confidence_values)):
         confidence_columns[i].metric(label=f'**{event_name}** Detection Confidence', 
-                                        value=f'{event_confidence * 100 : .2f} %')
-    
-    
+                                     value=f'{event_confidence * 100 : .2f} %')
+
+
 def display_streets_and_cameras(df_hotspot_streets, df_in_out_kl, dim_camera):
     st.header('Important Streets')
-    
+
     left_column_1, right_column_1 = st.columns(2)
-    
+
     with left_column_1:
         st.subheader('Hot-Spot Streets')
         st.write(df_hotspot_streets)
-        
+
     with right_column_1:
         st.subheader('In-Out KL Streets')
         st.write(df_in_out_kl)
 
     st.header('Cameras In Selected Road')
-   
+
     st.write(dim_camera)
 
 
@@ -144,8 +144,8 @@ def display_event_count_by_lane(fact_events):
                         use_container_width=True,
                         sharing="streamlit", 
                         theme=None)
-    
-    
+
+
 def display_detection_confidence_by_event_and_item_type(fact_events):
     st.header('Event Detection Confidence by Event Type and Item Type')
     

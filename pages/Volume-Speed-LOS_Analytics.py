@@ -15,7 +15,11 @@ hashed_passwords = stauth.Hasher(['senatraffic123']).generate()
 authenticator, name, authentication_status, username = authentication()
 
 if authentication_status:
-    display_volume_speed_los_analytics(authenticator, HOST_NAME, USER_NAME, USER_PASSWORD, DB_NAME)
+    display_volume_speed_los_analytics(authenticator, 
+                                       HOST_NAME, 
+                                       USER_NAME, 
+                                       USER_PASSWORD, 
+                                       DB_NAME)
 
     ## Use the below if-else block for a more personalized experience for different users (privilege based on username)
     ## Commented out for now
