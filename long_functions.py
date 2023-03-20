@@ -205,7 +205,7 @@ def get_volume_speed_los_query(road_selections, destination_selections, hourly_d
 
 
 @st.cache_data
-def get_main_event_query(selected_dest, selected_road, hourly_datetime_tuple):
+def getMainEventQuery(selected_dest, selected_road, hourly_datetime_tuple):
     
     if len(selected_dest) == 1:
                     

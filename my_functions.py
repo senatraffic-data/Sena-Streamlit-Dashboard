@@ -24,7 +24,7 @@ import yaml
 
 from sklearn.metrics import mean_squared_error
 
-from long_functions import get_volume_speed_los_query, get_main_event_query
+from long_functions import get_volume_speed_los_query, getMainEventQuery
 
 from displayMetrics import *
 
@@ -40,14 +40,14 @@ def getData(hostName, databaseName, userName, userPassword, query, trueness=True
 
 
 # @st.cache_resource
-def createConnection(hostName, userName, userPassword, databaseName):
+def createConnection(databaseCredentials):
     connection = None
-
+    
     try:
-        connection = mysql.connector.connect(host=hostName,
-                                             user=userName,
-                                             passwd=userPassword,
-                                             database=databaseName)
+        connection = mysql.connector.connect(host=databaseCredentials['HOSTNAME'],
+                                             user=databaseCredentials['USERNAME'],
+                                             passwd=databaseCredentials['USERPASSWORD'],
+                                             database=databaseCredentials['DATABASENAME'])
         print("Connection to MySQL DB successful")
     except Error as e:
         print(f"The error '{e}' occurred")
@@ -55,8 +55,8 @@ def createConnection(hostName, userName, userPassword, databaseName):
     return connection
 
 
-def sqlToDataframe(hostName, userName, userPassword, databaseName, query):
-    connection = createConnection(hostName, userName, userPassword, databaseName)
+def sqlToDataframe(databaseCredentials, query):
+    connection = createConnection(databaseCredentials)
     cursor = connection.cursor()
     result = None
     columnNames = None
@@ -98,10 +98,7 @@ def distinctNonNullCount(x):
 @st.cache_data
 def getFactVolumeSpeed(roadSelections, 
                        destinationSelections, 
-                       hostName, 
-                       userName, 
-                       userPassword, 
-                       databaseName, 
+                       databaseCredentials, 
                        selectedDatetime):
     dateFormat = '%Y-%m-%d %H:%M:%S'
     hourlyDatetime = pd.date_range(start=selectedDatetime[0], 
@@ -112,10 +109,7 @@ def getFactVolumeSpeed(roadSelections,
     query = get_volume_speed_los_query(roadSelections, 
                                        destinationSelections, 
                                        hourlyDatetimeTuple) 
-    factVolumeSpeed = sqlToDataframe(hostName, 
-                                     userName,
-                                     userPassword, 
-                                     databaseName, 
+    factVolumeSpeed = sqlToDataframe(databaseCredentials, 
                                      query)
     factVolumeSpeed['datetime'] = pd.to_datetime(factVolumeSpeed['datetime'])
 
@@ -157,11 +151,7 @@ def generateHourlyDatetime(dateFormat):
     return hourlyDatetimeList, todayStr, todayMinus2Str
 
 
-def getFilteredCameras(selectedRoad,
-                       hostName,
-                       userName,
-                       userPassword,
-                       databaseName):
+def getFilteredCameras(selectedRoad, databaseCredentials):
     if len(selectedRoad) != 1:
         query1 = f'''SELECT *
                       FROM dim_camera_states AS t1
@@ -175,11 +165,7 @@ def getFilteredCameras(selectedRoad,
     else:
         raise ValueError
 
-    dimCamera = sqlToDataframe(hostName,
-                           userName,
-                           userPassword,
-                           databaseName,
-                           query1)
+    dimCamera = sqlToDataframe(databaseCredentials, query1)
 
     return dimCamera
 
@@ -188,23 +174,16 @@ def getfactEventDataframe(dateFormat,
                           selectedDatetime,
                           selectedRoad,
                           selectedDestinations,
-                          hostName,
-                          userName,
-                          userPassword,
-                          databaseName):
+                          databaseCredentials):
     hourlyDatetime = pd.date_range(start=selectedDatetime[0],
                                     end=selectedDatetime[-1],
                                     freq='H').strftime(dateFormat)
     hourlyDatetimeTuple = tuple(hourlyDatetime)
 
-    eventQuery = get_main_event_query(selectedDestinations, 
+    eventQuery = getMainEventQuery(selectedDestinations, 
                                        selectedRoad, 
                                        hourlyDatetimeTuple)
-    factEvent = sqlToDataframe(hostName,
-                                userName,
-                                userPassword,
-                                databaseName,
-                                eventQuery)
+    factEvent = sqlToDataframe(databaseCredentials, eventQuery)
 
     return factEvent
 
@@ -247,20 +226,13 @@ def displayEventAnalytics(myAuthenticator, dateFormat):
             submitButton = st.form_submit_button("Submit")
 
             if submitButton:
-                dimCamera = getFilteredCameras(selectedRoads,
-                                                  HOSTNAME,
-                                                  USERNAME,
-                                                  USERPASSWORD,
-                                                  DATABASENAME)
+                dimCamera = getFilteredCameras(selectedRoads, databaseCredentials)
 
                 factEvent = getfactEventDataframe(dateFormat,
-                                                 selectedDatetime,
-                                                 selectedRoads,
-                                                 selectedDestinations,
-                                                 HOSTNAME,
-                                                 USERNAME,
-                                                 USERPASSWORD,
-                                                 DATABASENAME)
+                                                  selectedDatetime,
+                                                  selectedRoads,
+                                                  selectedDestinations,
+                                                  databaseCredentials)
                 factEventCSV = dataframeToCSV(factEvent)
 
     st.write("Streamlit version:", st.__version__)
@@ -352,11 +324,7 @@ def displayVolumeSpeedLOSAnalytics(myAuthenticator,
             submitButton = st.form_submit_button("Submit")
 
             if submitButton:
-                dimCamera = getFilteredCameras(selectedRoads,
-                                                  hostName,
-                                                  userName,
-                                                  userPassword,
-                                                  databaseName)
+                dimCamera = getFilteredCameras(selectedRoads, databaseCredentials)
 
                 factVolumeSpeed = getFactVolumeSpeed(selectedRoads, 
                                                 selectedDestinations,
