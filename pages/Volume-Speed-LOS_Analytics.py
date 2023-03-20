@@ -1,25 +1,34 @@
+import os
+
 import streamlit as st
 
-from my_functions import display_volume_speed_los_analytics, authentication
+from authenticator import Authenticator
 
-import streamlit_authenticator as stauth
+from my_functions import displayVolumeSpeedLOSAnalytics, authentication
+
+from streamlit_authenticator import SafeLoader
+
+# import streamlit_authenticator as stauth
 
 
-HOST_NAME = st.secrets.mysql.HOST_NAME
-USER_NAME = st.secrets.mysql.USER_NAME
-USER_PASSWORD = st.secrets.mysql.USER_PASSWORD
-DB_NAME = st.secrets.mysql.DB_NAME
+HOSTNAME = st.secrets.mysql.HOSTNAME
+USERNAME = st.secrets.mysql.USERNAME
+USERPASSWORD = st.secrets.mysql.USERPASSWORD
+DATABASENAME = st.secrets.mysql.DATABASENAME
 
-hashed_passwords = stauth.Hasher(['senatraffic123']).generate()
+# hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
 
-authenticator, name, authentication_status, username = authentication()
+myAuthenticator = Authenticator()
+userLoginsYamlPath = os.path.join(os.getcwd(), 'user_logins.yaml')   
+streamlitLoader=SafeLoader
+myAuthenticator.authenticate(filePath=userLoginsYamlPath, fileLoader=streamlitLoader)
 
-if authentication_status:
-    display_volume_speed_los_analytics(authenticator, 
-                                       HOST_NAME, 
-                                       USER_NAME, 
-                                       USER_PASSWORD, 
-                                       DB_NAME)
+if myAuthenticator.authenticationStatus:
+    displayVolumeSpeedLOSAnalytics(myAuthenticator, 
+                                   HOSTNAME, 
+                                   USERNAME, 
+                                   USERPASSWORD, 
+                                   DATABASENAME)
 
     ## Use the below if-else block for a more personalized experience for different users (privilege based on username)
     ## Commented out for now
@@ -29,7 +38,7 @@ if authentication_status:
     # elif username == 'rbriggs':
     #     st.write(f'Welcome *{name}*')
     #     st.title('Application 2')
-elif authentication_status == False:
+elif myAuthenticator.authenticationStatus == False:
     st.error('Username/password is incorrect')
-elif authentication_status == None:
+elif myAuthenticator.authenticationStatus == None:
     st.warning('Please enter your username and password')

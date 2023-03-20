@@ -15,297 +15,316 @@ from streamlit_folium import folium_static
 from branca.colormap import LinearColormap
 
 
-def display_overall_metrics(fact_events):
+@st.cache_data
+def getCSV(df):
+    return df.to_csv().encode('utf-8')
+
+
+def displayOverallMetrics(factEvent):
     st.header('Overall Metrics')
 
-    total_num_events = fact_events.shape[0]
-    event_count_by_event_type = fact_events.groupby('event_type')['camera_id'].count()
-    available_events = list(event_count_by_event_type.index)
-    num_of_available_events = len(available_events)
-    event_count_values = event_count_by_event_type.values
+    totalNumberOfEvents = factEvent.shape[0]
+    eventCountByEventType = factEvent.groupby('event_type')['camera_id'].count()
+    availableEvents = list(eventCountByEventType.index)
+    numberOfAvailableEvents = len(availableEvents)
+    eventCountValues = eventCountByEventType.values
 
-    st.metric(label='Total Number of Events', value=total_num_events)
+    st.metric(label='Total Number of Events', value=totalNumberOfEvents)
 
-    event_columns = st.columns(num_of_available_events)
+    eventColumns = st.columns(numberOfAvailableEvents)
 
-    for i, (event_name, event_count) in enumerate(zip(available_events, event_count_values)):
-        event_columns[i].metric(label=event_name, value=event_count)
+    for i, (eventName, eventCount) in enumerate(zip(availableEvents, eventCountValues)):
+        eventColumns[i].metric(label=eventName, value=eventCount)
 
-    confidence_by_event_type = fact_events.groupby('event_type')['confidence'].mean().dropna()
-    event_with_confidence = list(confidence_by_event_type.index)
-    confidence_values = confidence_by_event_type.values
-    num_of_events_with_confidence = len(event_with_confidence)
+    confidenceByEventType = factEvent.groupby('event_type')['confidence'].mean().dropna()
+    eventsWithConfidence = list(confidenceByEventType.index)
+    confidenceValues = confidenceByEventType.values
+    numberOfEventsWithConfidence = len(eventsWithConfidence)
 
-    confidence_columns = st.columns(num_of_events_with_confidence)
+    confidenceColumns = st.columns(numberOfEventsWithConfidence)
 
-    for i, (event_name, event_confidence) in enumerate(zip(event_with_confidence, confidence_values)):
-        confidence_columns[i].metric(label=f'**{event_name}** Detection Confidence', 
-                                     value=f'{event_confidence * 100 : .2f} %')
+    for i, (eventName, event_confidence) in enumerate(zip(eventsWithConfidence, confidenceValues)):
+        confidenceColumns[i].metric(label=f'**{eventName}** Detection Confidence', 
+                                    value=f'{event_confidence * 100 : .2f} %')
 
 
-def display_streets_and_cameras(df_hotspot_streets, df_in_out_kl, dim_camera):
+def displayStreetsAndCameras(dfHotspotStreets, dfInOutKL, dimCamera):
     st.header('Important Streets')
 
-    left_column_1, right_column_1 = st.columns(2)
+    leftColumn1, rightColumn1 = st.columns(2)
 
-    with left_column_1:
+    with leftColumn1:
         st.subheader('Hot-Spot Streets')
-        st.write(df_hotspot_streets)
+        st.write(dfHotspotStreets)
 
-    with right_column_1:
+    with rightColumn1:
         st.subheader('In-Out KL Streets')
-        st.write(df_in_out_kl)
+        st.write(dfInOutKL)
 
     st.header('Cameras In Selected Road')
 
-    st.write(dim_camera)
+    st.write(dimCamera)
 
 
-def display_event_count_by_camera_id(fact_events):
+def displayEventCountByCameraID(factEvent):
     st.header('Event Counts per Camera ID')
+    eventCountByCameraID = pd.crosstab(factEvent['camera_id'], factEvent['event_type'])
+    leftColumn2, rightColumn2 = st.columns(2)
     
-    event_count_by_cam = pd.crosstab(fact_events['camera_id'], fact_events['event_type'])
-    st.write(event_count_by_cam)
-    
-    left_column_2, right_column_2 = st.columns(2)
-    
-    with left_column_2:
-        st.bar_chart(fact_events['camera_id'].value_counts(dropna=False))
+    with leftColumn2:
+        st.bar_chart(factEvent['camera_id'].value_counts(dropna=False))
         
-    with right_column_2:
+    with rightColumn2:
         plt.style.use('dark_background')
         fig, ax = plt.subplots(1, 1)
-        event_count_by_cam.plot(kind='barh', 
+        eventCountByCameraID.plot(kind='barh', 
                                 stacked=True, 
                                 ax=ax)
         st.pyplot(fig)
     
-    event_count_string = 'Event Counts'
-    plotly_fig_event_count_by_cam = px.bar(fact_events['camera_id'].value_counts(dropna=False), 
+    eventCountString = 'Event Counts'
+    plotlyFigEventCountByCameraID = px.bar(factEvent['camera_id'].value_counts(dropna=False), 
                                             orientation='v',
                                             labels={'index': 'Camera ID',
-                                                    'value': event_count_string})
-    st.plotly_chart(plotly_fig_event_count_by_cam, 
+                                                    'value': eventCountString})
+    st.plotly_chart(plotlyFigEventCountByCameraID, 
                     use_container_width=True,
                     sharing="streamlit", 
                     theme=None)
+    st.write(eventCountByCameraID)
+    
+    eventCountByCameraIDCSV = getCSV(eventCountByCameraID)
+    
+    st.download_button(label="Download data as CSV",
+                       data=eventCountByCameraIDCSV,
+                       file_name='event_count_by_camera_id.csv',
+                       mime='text/csv')
     
     
-def display_treemap(fact_events):
+def displayTreemap(factEvent):
     st.header('Event Counts per Lane/Zone Treemap')
+    eventCountByLane = factEvent.groupby(['event_type', 'zone'], as_index=False).agg({'camera_id': 'count'})
+    eventCountByLaneCSV = getCSV(eventCountByLane)
+    treemapFig = px.treemap(eventCountByLane,
+                             path=[eventCountByLane['event_type'], eventCountByLane['zone']],
+                             values=eventCountByLane['camera_id'],
+                             width=500,
+                             height=750)
     
-    event_count_by_zone_lane = fact_events.groupby(['event_type', 'zone'], as_index=False).agg({'camera_id': 'count'})
-    treemap_fig = px.treemap(event_count_by_zone_lane,
-                                path=[event_count_by_zone_lane['event_type'], event_count_by_zone_lane['zone']],
-                                values=event_count_by_zone_lane['camera_id'],
-                                width=500,
-                                height=750)
-    st.plotly_chart(treemap_fig, use_container_width=True)
-    st.write(event_count_by_zone_lane)
+    st.plotly_chart(treemapFig, use_container_width=True)
     
-    
-def display_event_count_by_lane(fact_events):
+    st.write(eventCountByLane)
+    st.download_button(label="Download data as CSV",
+                       data=eventCountByLaneCSV,
+                       file_name='event_count_by_zone_lane.csv',
+                       mime='text/csv')
+
+
+def displayEventCountByLane(factEvent):
     st.header('Event Count By Lanes')
+
+    b2tLaneFilter = factEvent['zone'].str.startswith('b2t')
+    t2bLaneFilter = factEvent['zone'].str.startswith('t2b')
     
-    b2t_lane_filter = fact_events['zone'].str.startswith('b2t')
-    t2b_lane_filter = fact_events['zone'].str.startswith('t2b')
+    b2tEvents  =factEvent.loc[b2tLaneFilter]
+    t2bEvents = factEvent.loc[t2bLaneFilter]
     
-    b2t_events  =fact_events.loc[b2t_lane_filter]
-    t2b_events = fact_events.loc[t2b_lane_filter]
+    b2tEventCountByLane = pd.crosstab(b2tEvents['zone'], 
+                                      b2tEvents['event_type']).sort_values(by='zone', 
+                                                                           ascending=False)
+    t2bEventCountByLane = pd.crosstab(t2bEvents['zone'], t2bEvents['event_type'])
     
-    b2t_event_count_by_lane = pd.crosstab(b2t_events['zone'], b2t_events['event_type'])
-    t2b_event_count_by_lane = pd.crosstab(t2b_events['zone'], t2b_events['event_type'])
+    figEventCountByLane, axEventCountByLane = plt.subplots(1, 2)
     
-    fig_event_count_by_lane, ax_event_count_by_lane = plt.subplots(1, 2)
-    
-    b2t_event_count_by_lane.plot(kind='bar', 
-                                    stacked=True, 
-                                    ax=ax_event_count_by_lane[0])
-    t2b_event_count_by_lane.plot(kind='bar', 
-                                    stacked=True, 
-                                    ax=ax_event_count_by_lane[1])
+    b2tEventCountByLane.plot(kind='bar', 
+                             stacked=True, 
+                             ax=axEventCountByLane[0])
+    t2bEventCountByLane.plot(kind='bar', 
+                             stacked=True, 
+                             ax=axEventCountByLane[1])
     plt.tight_layout()
-    st.pyplot(fig_event_count_by_lane)
+    st.pyplot(figEventCountByLane)
     
-    by_lane_1, by_lane_2 = st.columns(2)
+    byLane1, byLane2 = st.columns(2)
         
-    with by_lane_1:
-        plotly_fig_event_count_by_lane_b2t = px.bar(b2t_event_count_by_lane, 
-                                                orientation='v')
-        st.plotly_chart(plotly_fig_event_count_by_lane_b2t, 
+    with byLane1:
+        b2tPlotlyFigEventCountByLane = px.bar(b2tEventCountByLane, 
+                                              orientation='v')
+        st.plotly_chart(b2tPlotlyFigEventCountByLane, 
                         use_container_width=True,
                         sharing="streamlit", 
                         theme=None)
         
-    with by_lane_2:
-        plotly_fig_event_count_by_lane_t2b = px.bar(t2b_event_count_by_lane, 
+    with byLane2:
+        t2bPlotlyFigEventCountByLane = px.bar(t2bEventCountByLane, 
                                                 orientation='v')
-        st.plotly_chart(plotly_fig_event_count_by_lane_t2b, 
+        st.plotly_chart(t2bPlotlyFigEventCountByLane, 
                         use_container_width=True,
                         sharing="streamlit", 
                         theme=None)
 
 
-def display_detection_confidence_by_event_and_item_type(fact_events):
+def displayDetectionConfidenceByEventAndItemType(factEvent):
     st.header('Event Detection Confidence by Event Type and Item Type')
+    confidence = pd.crosstab(factEvent['event_type'], 
+                             factEvent['item_type'], 
+                             factEvent['confidence'], 
+                             aggfunc=np.mean)
+
+    figConfidence, axConfidence = plt.subplots(1, 1)
+    confidencePlot = confidence.plot(kind='barh', 
+                                      stacked=False, 
+                                      ax=axConfidence)
+    axConfidence.set_yticklabels(confidence.index, rotation=0)
+    axConfidence.legend(loc="upper left")
+    axConfidence.set_ylabel('Event Type')
+    axConfidence.set_xlabel('Detection Confidence')
     
-    confidence = pd.crosstab(fact_events['event_type'], 
-                                fact_events['item_type'], 
-                                fact_events['confidence'], 
-                                aggfunc=np.mean)
-    
-    fig_confidence, ax_confidence = plt.subplots(1, 1)
-    confidence_plot = confidence.plot(kind='barh', 
-                                        stacked=False, 
-                                        ax=ax_confidence)
-    ax_confidence.set_yticklabels(confidence.index, rotation=0)
-    ax_confidence.legend(loc="upper left")
-    
-    for i in confidence_plot.containers:
-        labels = [f'{val:.2f}' if val > 0 else '' for val in i.datavalues]
-        ax_confidence.bar_label(i, 
-                                label_type='edge', 
-                                labels=labels, 
-                                fontsize=10, 
-                                padding=3)
-        
+    for i in confidencePlot.containers:
+        labels = [f'{val * 100 :.2f} %' if val > 0 else '' for val in i.datavalues]
+        axConfidence.bar_label(i,
+                               label_type='edge',
+                               labels=labels,
+                               fontsize=10,
+                               padding=3)
+
     plt.tight_layout()
-    st.pyplot(fig_confidence)
-    
-    confidence_index_resetted = confidence.reset_index()
-    plotly_fig_event_confidence = px.bar(confidence_index_resetted, 
-                                            x='event_type',
-                                            y=confidence_index_resetted.columns[1: ],
-                                            barmode='group',
-                                            orientation='v')
-    st.plotly_chart(plotly_fig_event_confidence, 
+    st.pyplot(figConfidence)
+
+    confidenceIndexResetted = confidence.reset_index()
+    plotlyFigEventConfidence = px.bar(confidenceIndexResetted, 
+                                      x='event_type',
+                                      y=confidenceIndexResetted.columns[1: ],
+                                      barmode='group',
+                                      orientation='v')
+    st.plotly_chart(plotlyFigEventConfidence, 
                     use_container_width=True,
                     sharing="streamlit", 
                     theme=None)
 
 
-def display_hourly_detection_confidence(fact_events):
+def displayHourlyDetectionConfidence(factEvent):
     st.header('Hourly Detection Confidence')
     
-    fact_events['datetime'] = pd.to_datetime(fact_events['datetime'])
-    df_hourly_confidence = fact_events.pivot_table(values=['confidence'],
-                                                    index=['datetime'],
-                                                    columns=['event_type'],
-                                                    aggfunc={'confidence': np.mean})
-    df_hourly_confidence = df_hourly_confidence.asfreq('H')
-    df_hourly_confidence = df_hourly_confidence.ffill().rolling(3).mean()
+    factEvent['datetime'] = pd.to_datetime(factEvent['datetime'])
+    dfHourlyConfidence = factEvent.pivot_table(values=['confidence'],
+                                               index=['datetime'],
+                                               columns=['event_type'],
+                                               aggfunc={'confidence': np.mean})
+    dfHourlyConfidence = dfHourlyConfidence.asfreq('H')
+    dfHourlyConfidence = dfHourlyConfidence.ffill().rolling(3).mean()
     
-    previous_columns = list(df_hourly_confidence.columns)
-    new_columns = [multi_column[-1] for multi_column in previous_columns]
-    df_hourly_confidence.columns = new_columns
-    df_hourly_confidence.index.name = ""
+    previousColumns = list(dfHourlyConfidence.columns)
+    newColumns = [multi_column[-1] for multi_column in previousColumns]
+    dfHourlyConfidence.columns = newColumns
+    dfHourlyConfidence.index.name = ""
     
-    fig_hourly_confidence, ax_hourly_confidence = plt.subplots(1, 1)
-    df_hourly_confidence.plot(kind='line',
-                                title=r'Hourly Detection Confidence by Event Type',
-                                ax=ax_hourly_confidence,
-                                ylabel='Confidence')
-    st.pyplot(fig_hourly_confidence)
+    figHourlyConfidence, axHourlyConfidence = plt.subplots(1, 1)
+    dfHourlyConfidence.plot(kind='line',
+                              title=r'Hourly Detection Confidence by Event Type',
+                              ax=axHourlyConfidence,
+                              ylabel='Confidence')
+    st.pyplot(figHourlyConfidence)
     
-    plotly_fig_hourly_confidence = px.line(df_hourly_confidence)
-    plotly_fig_hourly_confidence.update_layout(yaxis_title="Confidence")
-    st.plotly_chart(plotly_fig_hourly_confidence, 
+    plotlyFigHourlyConfidence = px.line(dfHourlyConfidence)
+    plotlyFigHourlyConfidence.update_layout(yaxis_title="Confidence")
+    st.plotly_chart(plotlyFigHourlyConfidence, 
                     use_container_width=True,
                     sharing="streamlit", 
                     theme=None)
 
 
-def display_hourly_event_count(fact_events, selected_dest, event_count_string):
+def displayHourlyEventCount(factEvent, selectedDestinations, eventCountString):
     st.header('Hourly Event Count by Event Type')
     
-    fact_events_in = fact_events[fact_events['direction']=='IN']
-    fact_events_out = fact_events[fact_events['direction']=='OUT']
+    factEventInbound = factEvent[factEvent['direction']=='IN']
+    factEventOutbound = factEvent[factEvent['direction']=='OUT']
     
-    df_hourly_event_count_in = pd.crosstab(index=fact_events_in['datetime'], 
-                                            columns=fact_events_in['event_type'])
-    df_hourly_event_count_in = df_hourly_event_count_in.asfreq('H')
-    df_hourly_event_count_in = df_hourly_event_count_in.ffill()
-    df_hourly_event_count_in.index.name = ''
+    dfHourlyEventCountInbound = pd.crosstab(index=factEventInbound['datetime'], 
+                                           columns=factEventInbound['event_type'])
+    dfHourlyEventCountInbound = dfHourlyEventCountInbound.asfreq('H')
+    dfHourlyEventCountInbound = dfHourlyEventCountInbound.ffill()
+    dfHourlyEventCountInbound.index.name = ''
         
-    df_hourly_event_count_out = pd.crosstab(index=fact_events_out['datetime'], 
-                                            columns=fact_events_out['event_type'])
-    df_hourly_event_count_out = df_hourly_event_count_out.asfreq('H')
-    df_hourly_event_count_out = df_hourly_event_count_out.ffill()
-    df_hourly_event_count_out.index.name = ''
+    dfHourlyEventCountOutbound = pd.crosstab(index=factEventOutbound['datetime'], 
+                                            columns=factEventOutbound['event_type'])
+    dfHourlyEventCountOutbound = dfHourlyEventCountOutbound.asfreq('H')
+    dfHourlyEventCountOutbound = dfHourlyEventCountOutbound.ffill()
+    dfHourlyEventCountOutbound.index.name = ''
         
-    single_or_double_destinations(selected_dest,
-                                    df_hourly_event_count_in,
-                                    df_hourly_event_count_out,
-                                    event_count_string)
+    singleOrDoubleDestinationPlotting(selectedDestinations,
+                                        dfHourlyEventCountInbound,
+                                        dfHourlyEventCountOutbound,
+                                        eventCountString)
     
     
-def single_or_double_destinations(selected_dest, 
-                                  df_hourly_event_count_in, 
-                                  df_hourly_event_count_out,
-                                  event_count_string):
-    if ( selected_dest == ['IN', 'OUT'] ) or ( selected_dest == ['OUT', 'IN'] ):
-        in_column, out_column = st.columns(2)
+def singleOrDoubleDestinationPlotting(selectedDestinations, 
+                                      dfHourlyEventCountInbound, 
+                                      dfHourlyEventCountOutbound,
+                                      eventCountString):
+    if ( selectedDestinations == ['IN', 'OUT'] ) or ( selectedDestinations == ['OUT', 'IN'] ):
+        inColumn, outColumn = st.columns(2)
             
-        with in_column:
-            fig_hourly_in, ax_hourly_in = plt.subplots(1, 1)
-            df_hourly_event_count_in.plot(kind='line',
+        with inColumn:
+            figHourlyInbound, axHourlyInbound = plt.subplots(1, 1)
+            dfHourlyEventCountInbound.plot(kind='line',
                                         title='Inbound',
-                                        ax=ax_hourly_in,
-                                        ylabel=event_count_string)
-            st.pyplot(fig_hourly_in)
+                                        ax=axHourlyInbound,
+                                        ylabel=eventCountString)
+            st.pyplot(figHourlyInbound)
             
-            plotly_fig_hourly_count_in = px.line(df_hourly_event_count_in, 
+            plotlyFigHourlyCountInbound = px.line(dfHourlyEventCountInbound, 
                                                 template="plotly_dark", 
                                                 title='IN-bound')
-            plotly_fig_hourly_count_in.update_layout(yaxis_title=event_count_string)
-            st.plotly_chart(plotly_fig_hourly_count_in, 
+            plotlyFigHourlyCountInbound.update_layout(yaxis_title=eventCountString)
+            st.plotly_chart(plotlyFigHourlyCountInbound, 
                             use_container_width=True,
                             sharing="streamlit", 
                             theme=None)
         
-        with out_column:
-            fig_hourly_out, ax_hourly_out = plt.subplots(1, 1)
-            df_hourly_event_count_out.plot(kind='line',
+        with outColumn:
+            figHourlyOutbound, axHourlyOutbound = plt.subplots(1, 1)
+            dfHourlyEventCountOutbound.plot(kind='line',
                                         title='Outbound',
-                                        ax=ax_hourly_out)
-            st.pyplot(fig_hourly_out)
+                                        ax=axHourlyOutbound)
+            st.pyplot(figHourlyOutbound)
             
-            plotly_fig_hourly_count_out = px.line(df_hourly_event_count_out,
+            plotlyFigHourlyCountOutbound = px.line(dfHourlyEventCountOutbound,
                                                 template="plotly_dark",
                                                 title='OUT-bound')
-            plotly_fig_hourly_count_out.update_layout(yaxis_title='')
-            st.plotly_chart(plotly_fig_hourly_count_out,
+            plotlyFigHourlyCountOutbound.update_layout(yaxis_title='')
+            st.plotly_chart(plotlyFigHourlyCountOutbound,
                             use_container_width=True,
                             sharing="streamlit",
                             theme=None)
-    elif selected_dest == ['IN']:
-        fig_hourly_in, ax_hourly_in = plt.subplots(1, 1)
-        df_hourly_event_count_in.plot(kind='line',
-                                        title='Inbound',
-                                        ax=ax_hourly_in,
-                                        ylabel=event_count_string)
-        st.pyplot(fig_hourly_in)
+    elif selectedDestinations == ['IN']:
+        figHourlyInbound, axHourlyInbound = plt.subplots(1, 1)
+        dfHourlyEventCountInbound.plot(kind='line',
+                                      title='Inbound',
+                                      ax=axHourlyInbound,
+                                      ylabel=eventCountString)
+        st.pyplot(figHourlyInbound)
         
-        plotly_fig_hourly_count_in = px.line(df_hourly_event_count_in, 
-                                                template="plotly_dark", 
-                                                title='IN-bound')
-        plotly_fig_hourly_count_in.update_layout(yaxis_title=event_count_string)
-        st.plotly_chart(plotly_fig_hourly_count_in, 
+        plotlyFigHourlyCountInbound = px.line(dfHourlyEventCountInbound, 
+                                             template="plotly_dark", 
+                                             title='IN-bound')
+        plotlyFigHourlyCountInbound.update_layout(yaxis_title=eventCountString)
+        st.plotly_chart(plotlyFigHourlyCountInbound, 
                         use_container_width=True,
                         sharing="streamlit", 
                         theme=None)
-    elif selected_dest == ['OUT']:
-        fig_hourly_out, ax_hourly_out = plt.subplots(1, 1)
-        df_hourly_event_count_out.plot(kind='line',
-                                    title='Outbound',
-                                    ax=ax_hourly_out)
-        st.pyplot(fig_hourly_out)
+    elif selectedDestinations == ['OUT']:
+        figHourlyOutbound, axHourlyOutbound = plt.subplots(1, 1)
+        dfHourlyEventCountOutbound.plot(kind='line',
+                                       title='Outbound',
+                                       ax=axHourlyOutbound)
+        st.pyplot(figHourlyOutbound)
         
-        plotly_fig_hourly_count_out = px.line(df_hourly_event_count_out,
-                                            template="plotly_dark",
-                                            title='OUT-bound')
-        plotly_fig_hourly_count_out.update_layout(yaxis_title='')
-        st.plotly_chart(plotly_fig_hourly_count_out,
+        plotlyFigHourlyCountOutbound = px.line(dfHourlyEventCountOutbound,
+                                              template="plotly_dark",
+                                              title='OUT-bound')
+        plotlyFigHourlyCountOutbound.update_layout(yaxis_title='')
+        st.plotly_chart(plotlyFigHourlyCountOutbound,
                         use_container_width=True,
                         sharing="streamlit",
                         theme=None)
@@ -313,142 +332,159 @@ def single_or_double_destinations(selected_dest,
         st.write('ERROR')
         
 
-def display_overall_volume_speed_metrics(fact_volume_speed):
-    st.header('Overall Metrics')
+def displayOverallVolumeSpeedMetrics(factVolumeSpeed):
+    st.subheader('Overall Metrics')
     
-    st.subheader('Vehicle Count')
+    st.write('Vehicle Count')
     
-    minimum_car_count = int(fact_volume_speed['car_count'].min())
-    average_car_count = int(fact_volume_speed['car_count'].mean())
-    maximum_car_count = int(fact_volume_speed['car_count'].max())
+    minimumCarCount = int(factVolumeSpeed['car_count'].min())
+    averageCarCount = int(factVolumeSpeed['car_count'].mean())
+    maximumCarCount = int(factVolumeSpeed['car_count'].max())
     
-    car_column_1, car_column_2 , car_column_3 = st.columns(3)
+    carColumn1, carColumn2 , carColumn3 = st.columns(3)
     
-    with car_column_1:
-        st.metric(label='Minimum Car Count', value=minimum_car_count)
+    with carColumn1:
+        st.metric(label='Minimum Car Count', value=minimumCarCount)
         
-    with car_column_2:
-        st.metric(label='Average Car Count', value=average_car_count)
+    with carColumn2:
+        st.metric(label='Average Car Count', value=averageCarCount)
         
-    with car_column_3:
-        st.metric(label='Maximum Car Count', value=maximum_car_count)
+    with carColumn3:
+        st.metric(label='Maximum Car Count', value=maximumCarCount)
     
-    st.subheader('Lane Speed (km/h)')
+    st.write('Lane Speed (km/h)')
     
-    descriptions = fact_volume_speed.describe()
-    minimum_lane_speed  = round(descriptions.loc['min', 'lane_speed'], 2)
-    average_lane_speed = round(descriptions.loc['mean', 'lane_speed'], 2)
-    max_lane_speed = round(descriptions.loc['max', 'lane_speed'], 2)
+    descriptions = factVolumeSpeed.describe()
+    minimumLaneSpeed  = round(descriptions.loc['min', 'lane_speed'], 2)
+    averageLaneSpeed = round(descriptions.loc['mean', 'lane_speed'], 2)
+    maxLaneSpeed = round(descriptions.loc['max', 'lane_speed'], 2)
     
-    minimum_lane_speed_column, mean_lane_speed_column, max_lane_speed_column = st.columns(3)
+    minimumLaneSpeedColumn, averageLaneSpeedColumn, maximumLaneSpeedColumn = st.columns(3)
     
-    with minimum_lane_speed_column:
-        st.metric(label='Minimum Lane Speed', value=minimum_lane_speed)
+    with minimumLaneSpeedColumn:
+        st.metric(label='Minimum Lane Speed', value=minimumLaneSpeed)
     
-    with mean_lane_speed_column:
-        st.metric(label='Average Lane Speed', value=average_lane_speed)
+    with averageLaneSpeedColumn:
+        st.metric(label='Average Lane Speed', value=averageLaneSpeed)
     
-    with max_lane_speed_column:
-        st.metric(label='Maximum Lane Speed', value=max_lane_speed)
+    with maximumLaneSpeedColumn:
+        st.metric(label='Maximum Lane Speed', value=maxLaneSpeed)
     
-    st.subheader('LOS (%)')
+    st.write('LOS (%)')
     
-    minimum_los = round(descriptions.loc['min', 'LOS'], 4)
-    average_los = round(descriptions.loc['mean', 'LOS'], 4)
-    max_los = round(descriptions.loc['max', 'LOS'], 4)
+    minimumLOS = round(descriptions.loc['min', 'LOS'], 4)
+    averageLOS = round(descriptions.loc['mean', 'LOS'], 4)
+    maximumLOS = round(descriptions.loc['max', 'LOS'], 4)
     
-    minimum_los_column, mean_los_column, max_los_column = st.columns(3)
+    minimumLOSColumn, averageLOSColumn, maximumLOSColumn = st.columns(3)
     
-    with minimum_los_column:
-        st.metric(label='Minimum LOS', value=minimum_los)
+    with minimumLOSColumn:
+        st.metric(label='Minimum LOS', value=minimumLOS)
     
-    with mean_los_column:
-        st.metric(label='Average LOS', value=average_los)
+    with averageLOSColumn:
+        st.metric(label='Average LOS', value=averageLOS)
 
-    with max_los_column:
-        st.metric(label='Maximum LOS', value=max_los)
+    with maximumLOSColumn:
+        st.metric(label='Maximum LOS', value=maximumLOS)
     
     
-def display_hourly_vehicle_count(fact_volume_speed):
+def displayHourlyVehicleCount(factVolumeSpeed):
     st.header('Hourly Vehicle Count')
     
-    df_hourly_car_count = fact_volume_speed.pivot_table(values=['car_count'],
-                                                        index=['datetime'],
-                                                        columns=['POV'])
-    df_hourly_car_count.index.name = ""
-    df_hourly_car_count.columns = ['b2t', 't2b']
+    dfHourlyCarCount = factVolumeSpeed.pivot_table(values=['car_count'],
+                                                     index=['datetime'],
+                                                     columns=['POV'])
     
-    fig_car_count, ax_car_count = plt.subplots(1, 1)
-    df_hourly_car_count.plot(kind='line',
-                            title=r'Hourly Car Count (b2t & t2b)',
-                            ax=ax_car_count,
-                            ylabel='Count')
+    for columnName in factVolumeSpeed.columns[6: -4]:
+        factVolumeSpeed[columnName] = pd.to_numeric(factVolumeSpeed[columnName], errors='coerce')
+    
+    dfHourlyVehicleCount = factVolumeSpeed.groupby(['datetime'])[['bus_count', 'car_count', 'lorry_count', 'truck_count', 'van_count', 'motorbike_count', 'total_count']].sum()
+
+    dfHourlyVehicleCount.index.name = ""
+    dfHourlyVehicleCount.columns = ['bus', 'car', 'lorry','truck', 'van', 'motorbike', 'total']
+    
+    figCarCount, axCarCount = plt.subplots(1, 1)
+    dfHourlyVehicleCount.plot(kind='line',
+                              title=r'Hourly Vehicle Count',
+                              ax=axCarCount,
+                              ylabel='Count')
     plt.style.use('dark_background')
-    st.pyplot(fig_car_count)
+    st.pyplot(figCarCount)
+    
+    dfHourlyCarCount.index.name = ""
+    dfHourlyCarCount.columns = ['b2t', 't2b']
+    
+    # fig_car_count, ax_car_count = plt.subplots(1, 1)
+    # df_hourly_car_count.plot(kind='line',
+    #                         title=r'Hourly Car Count (b2t & t2b)',
+    #                         ax=ax_car_count,
+    #                         ylabel='Count')
+    # plt.style.use('dark_background')
+    # st.pyplot(fig_car_count)
         
-    plotly_fig_hourly_car_count = px.line(df_hourly_car_count, 
-                                            template="plotly_dark", 
-                                            title='Hourly Car Count')
-    plotly_fig_hourly_car_count.update_layout(yaxis_title='Car Count')
-    st.plotly_chart(plotly_fig_hourly_car_count, 
+    plotlyFigHourlyCarCount = px.line(dfHourlyCarCount, 
+                                      template="plotly_dark", 
+                                      title='Hourly Car Count')
+    plotlyFigHourlyCarCount.update_layout(yaxis_title='Car Count')
+    st.plotly_chart(plotlyFigHourlyCarCount, 
                     use_container_width=True,   
                     sharing="streamlit", 
                     theme=None)
     
     
-def display_hourly_los_inbound_outbound(df_hourly_los):
+def displayHourlyLOSInboundOutbound(dfHourlyLOS):
     st.header('Hourly LOS% Plot for Inbound & Outbound')
     
-    df_hourly_los.index.name = ""
+    dfHourlyLOS.index.name = ""
     
-    fig_time_plot, ax_time_plot = plt.subplots(1, 1)
-    df_hourly_los.plot(kind='line',
+    figTimePlot, axTimePlot = plt.subplots(1, 1)
+    dfHourlyLOS.plot(kind='line',
                     title=r'Hourly LOS% For Inbound & Outbound',
-                    ax=ax_time_plot,
+                    ax=axTimePlot,
                     ylabel='LOS %')
     plt.style.use('dark_background')
-    st.pyplot(fig_time_plot)
+    st.pyplot(figTimePlot)
     
-    plotly_fig_hourly_los = px.line(df_hourly_los, 
-                                    template="plotly_dark", 
-                                    title='Hourly LOS')
-    plotly_fig_hourly_los.update_layout(yaxis_title='LOS')
-    st.plotly_chart(plotly_fig_hourly_los, 
+    plotlyFigHourlyLOS = px.line(dfHourlyLOS, 
+                                 template="plotly_dark", 
+                                 title='Hourly LOS')
+    plotlyFigHourlyLOS.update_layout(yaxis_title='LOS')
+    st.plotly_chart(plotlyFigHourlyLOS, 
                     use_container_width=True,   
                     sharing="streamlit", 
                     theme=None)
     
     
-def display_timeseries_testing(forecaster, metrics, y_s):
+def displayTimeseriesTesting(forecaster, metrics, yList):
     st.header('Time-Series Model Testing')
 
     st.write(forecaster.summary())
     st.write(f'The testing MAPE is {metrics[0]}')
     st.write(f'The testing MSE is {metrics[1]}')
-    st.write(y_s[2])
+    st.write(yList[2])
 
-    fig_forecast, ax_forecast = plt.subplots(1, 1)
-    y_s[0].plot(kind='line', 
-                ax=ax_forecast,
+    figForecast, axForecast = plt.subplots(1, 1)
+    yList[0].plot(kind='line', 
+                ax=axForecast,
                 title=r'Hourly LOS% For Train, Testing, and Prediction',
                 ylabel='LOS %')
-    y_s[1].plot(kind='line', 
-                ax=ax_forecast)
-    y_s[2].plot(kind='line', 
-                ax=ax_forecast)
-    plt.fill_between(y_s[3].index,
-                        y_s[3].loc[: , ('Coverage', 0.9, 'lower')],
-                        y_s[3].loc[: , ('Coverage', 0.9, 'upper')],
+    yList[1].plot(kind='line', 
+                ax=axForecast)
+    yList[2].plot(kind='line', 
+                ax=axForecast)
+    plt.fill_between(yList[3].index,
+                        yList[3].loc[: , ('Coverage', 0.9, 'lower')],
+                        yList[3].loc[: , ('Coverage', 0.9, 'upper')],
                         alpha=0.25)
-    ax_forecast.legend()
+    axForecast.legend()
     plt.tight_layout()
-    st.pyplot(fig_forecast)
+    st.pyplot(figForecast)
         
-    plotly_fig_hourly_los_train_test = px.line(y_s[4],
-                                                template="plotly_dark",
-                                                title=r'Hourly LOS% For Train, Testing, and Prediction')
-    plotly_fig_hourly_los_train_test.update_layout(yaxis_title='LOS%')
-    st.plotly_chart(plotly_fig_hourly_los_train_test,
+    plotlyFigHourlyLOSTrainTest = px.line(yList[4],
+                                          template="plotly_dark",
+                                          title=r'Hourly LOS% For Train, Testing, and Prediction')
+    plotlyFigHourlyLOSTrainTest.update_layout(yaxis_title='LOS%')
+    st.plotly_chart(plotlyFigHourlyLOSTrainTest,
                     use_container_width=True,
                     sharing="streamlit",
                     theme=None)
@@ -457,78 +493,78 @@ def display_timeseries_testing(forecaster, metrics, y_s):
     
     with col1:
         st.write('Testing Data')
-        st.write(y_s[1])
+        st.write(yList[1])
         
     with col2:
         st.write('Predictions')
-        st.write(y_s[2])
+        st.write(yList[2])
         
     with col3:
         st.write('Confidence Interval')
-        st.write(y_s[3])
+        st.write(yList[3])
     
      
-def display_timeseries_forecasting(y_s):
+def displayTimeseriesForecasting(yList):
     st.header('Forecasting')
 
-    fig_forecast_alt, ax_forecast_alt = plt.subplots(1, 1)
-    y_s[-1].plot(kind='line',
-                    ax=ax_forecast_alt,
+    figForecastAlt, axForecastAlt = plt.subplots(1, 1)
+    yList[-1].plot(kind='line',
+                    ax=axForecastAlt,
                     title=r'Hourly LOS% For Observed Data & Forecast',
                     ylabel='LOS %')
-    y_s[5].plot(kind='line',
-                ax=ax_forecast_alt)
-    plt.fill_between(y_s[6].index,
-                        y_s[6].loc[: , ('Coverage', 0.9, 'lower')],
-                        y_s[6].loc[: , ('Coverage', 0.9, 'upper')],
+    yList[5].plot(kind='line',
+                ax=axForecastAlt)
+    plt.fill_between(yList[6].index,
+                        yList[6].loc[: , ('Coverage', 0.9, 'lower')],
+                        yList[6].loc[: , ('Coverage', 0.9, 'upper')],
                         alpha=0.25)
-    ax_forecast_alt.legend()
+    axForecastAlt.legend()
     plt.tight_layout()
-    st.pyplot(fig_forecast_alt)
+    st.pyplot(figForecastAlt)
     
-    plotly_fig_hourly_los_forecast = px.line(y_s[7], 
-                                                template="plotly_dark",
-                                                title=r'Hourly LOS% For Observed Data & Forecast')
-    plotly_fig_hourly_los_forecast.update_layout(yaxis_title='LOS%')
-    st.plotly_chart(plotly_fig_hourly_los_forecast,
+    plotlyFigHourlyLOSForecast = px.line(yList[7], 
+                                         template="plotly_dark",
+                                         title=r'Hourly LOS% For Observed Data & Forecast')
+    plotlyFigHourlyLOSForecast.update_layout(yaxis_title='LOS%')
+    st.plotly_chart(plotlyFigHourlyLOSForecast,
                     use_container_width=True,
                     sharing="streamlit",
                     theme=None)
     
-    col1_alt, col2_alt, col3_alt = st.columns(3)
+    col1Alt, col2Alt, col3Alt = st.columns(3)
     
-    with col1_alt:
+    with col1Alt:
         st.write('All Observed Data')
-        st.write(y_s[-1])
+        st.write(yList[-1])
         
-    with col2_alt:
+    with col2Alt:
         st.write('Forecasted Values')
-        st.write(y_s[5])
+        st.write(yList[5])
         
-    with col3_alt:
+    with col3Alt:
         st.write('Confidence Interval')
-        st.write(y_s[6])
+        st.write(yList[6])
     
     
-def display_heatmap(fact_volume_speed, dim_camera):
-    st.header('Heat Map')
+def displayHeatMap(factVolumeSpeed, dimCamera):
+    st.subheader('Heat Map')
     
-    merged_metrics_camera = fact_volume_speed.merge(dim_camera, 
-                                                    how='left', 
-                                                    on='camera_id')
-    groupby_cameras = merged_metrics_camera\
-                    .groupby(['camera_id', 'latitude', 'longitude'])\
-                    .agg({'LOS': np.mean})
-    groupby_cameras_index_resetted = groupby_cameras.reset_index()
-    subsetted_1 = groupby_cameras_index_resetted[['camera_id', 'latitude', 'longitude', 'LOS']].dropna()
-    subsetted = subsetted_1[['latitude', 'longitude', 'LOS']]
-    camera_ids = subsetted_1['camera_id'].values
+    mergedMetricsCamera = factVolumeSpeed.merge(dimCamera, 
+                                                how='left', 
+                                                on='camera_id')
+    groupbyCameras = mergedMetricsCamera.groupby(['camera_id', 
+                                                  'latitude', 
+                                                  'longitude']).agg({'LOS': np.mean})
+    groupbyCamerasIndexResetted = groupbyCameras.reset_index()
+    subsetted1 = groupbyCamerasIndexResetted[['camera_id', 'latitude', 'longitude', 'LOS']].dropna()
+    subsetted = subsetted1[['latitude', 'longitude', 'LOS']]
+    cameraIDs = subsetted1['camera_id'].values
     
     # Define the center of the map
     center = subsetted.values[0, 0: 2]
 
     # Create a folium map
-    m = folium.Map(location=center, 
+    baseMap = folium.Map(location=center, 
                 zoom_start=12, 
                 tiles='OpenStreetMap')
     # Add the updated layer to the map
@@ -538,28 +574,28 @@ def display_heatmap(fact_volume_speed, dim_camera):
     coordinates = np.array(subsetted.values, dtype=np.float64)
     
     # Define a color map
-    min_los = np.nanmin(coordinates[: , -1])
-    median_los = np.nanmedian(coordinates[: , -1])
-    max_los = np.nanmax(coordinates[: , -1])
-    index = [min_los, median_los, max_los]
-    index_sorted = sorted(index)
+    minimumLOS = np.nanmin(coordinates[: , -1])
+    medianLOS = np.nanmedian(coordinates[: , -1])
+    maximumLOS = np.nanmax(coordinates[: , -1])
+    index = [minimumLOS, medianLOS, maximumLOS]
+    indexSorted = sorted(index)
     colormap = LinearColormap(colors=['green', 'yellow', 'red'], 
-                            index=index_sorted, 
-                            vmin=0.0, 
-                            vmax=150.0)
+                              index=indexSorted, 
+                              vmin=0.0, 
+                              vmax=150.0)
         
     # Add bubbles to the layer with color based on value
-    for cam_id, coord in zip(camera_ids, coordinates):
-        radius = coord[-1] # Use the value as the radius
-        folium.CircleMarker(location=coord[0: 2], 
+    for cameraID, coordinate in zip(cameraIDs, coordinates):
+        radius = coordinate[-1] # Use the value as the radius
+        folium.CircleMarker(location=coordinate[0: 2], 
                             radius=radius, 
-                            color=colormap(coord[-1]),
+                            color=colormap(coordinate[-1]),
                             fill=True, 
-                            fill_color=colormap(coord[-1]),
-                            tooltip=f'<b>Camera ID: {cam_id} | LOS %: {coord[-1]: .2f}</b>').add_to(layer)
+                            fill_color=colormap(coordinate[-1]),
+                            tooltip=f'<b>Camera ID: {cameraID} | LOS %: {coordinate[-1]: .2f}</b>').add_to(layer)
 
     # Add the layer to the map
-    layer.add_to(m)
+    layer.add_to(baseMap)
 
     # Display the map in Streamlit
-    folium_static(m)
+    folium_static(baseMap)
