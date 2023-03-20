@@ -2,9 +2,10 @@ import pandas as pd
 import streamlit as st
 
 import streamlit_authenticator as stauth
-from displayMetrics import displayDetectionConfidenceByEventAndItemType, displayEventCountByCameraID, displayEventCountByLane, displayHourlyDetectionConfidence, displayHourlyEventCount, displayOverallMetrics, displayStreetsAndCameras, displayTreemap
 
-from my_functions import authentication, displayEventAnalytics, generateHourlyDatetime
+from displayMetrics import displayStreetsAndCameras
+
+from my_functions import generateHourlyDatetime
 
 from authenticator import Authenticator
 
@@ -21,6 +22,7 @@ def main():
     # hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
     DATEFORMAT = '%Y-%m-%d %H:%M:%S'
     NODATAMESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
+    eventCountString = 'Event Counts'
     hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(DATEFORMAT)
     
     myAuthenticator = Authenticator()
@@ -49,8 +51,6 @@ def main():
         dfInOutKL = pd.read_excel(DATAPATH, sheet_name='InOut KL Traffic')
         availableRoads = tuple(dfHotspotStreets['road'].values)
 
-        eventCountString = 'Event Counts'
-
         sidebar = Sidebar(
             availableRoads, 
             hourlyDatetimeList, 
@@ -61,7 +61,7 @@ def main():
         )
         
         try:
-            dimCamera, factEvent, factEventCSV, selectedDestinations = sidebar.renderSidebar()
+            dimCamera, factEvent, factEventCSV, selectedDestinations = sidebar.renderSidebar(option='event')
             event = Event(factEvent)
         except:
             st.write(NODATAMESSAGE)
@@ -71,7 +71,6 @@ def main():
         st.title('Traffic Dashboard')
         
         try:
-            st.write(dimCamera)
             event.displayOverallMetrics()
             event.displayEventCountByCameraID()
             event.displayTreemap()
@@ -81,13 +80,13 @@ def main():
             event.displayHourlyEventCount(selectedDestinations, eventCountString)
             displayStreetsAndCameras(dfHotspotStreets, dfInOutKL, dimCamera)
             st.header('Raw Event Data')
-            st.write(event.factEvent)
+            st.write(factEvent)
             st.download_button(
                 label="Download data as CSV",
                 data=factEventCSV,
                 file_name='event_raw_data.csv',
                 mime='text/csv'
-            )
+                )
         except:
             st.write(NODATAMESSAGE)
             

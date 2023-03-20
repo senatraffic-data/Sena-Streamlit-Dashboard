@@ -14,7 +14,7 @@ class Event:
         
         
     @st.cache_data
-    def convertToCSV(self, df):
+    def convertToCSV(_self, df):
         return df.to_csv().encode('utf-8')
     
     
@@ -74,7 +74,6 @@ class Event:
         st.write(eventCountByCameraID)
         
         eventCountByCameraIDCSV = self.convertToCSV(eventCountByCameraID)
-        
         st.download_button(label="Download data as CSV",
                            data=eventCountByCameraIDCSV,
                            file_name='event_count_by_camera_id.csv',
