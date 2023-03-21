@@ -1,11 +1,6 @@
-from datetime import timedelta
-import pandas as pd
-
 import streamlit as st
 
-from my_functions import dataframeToCSV, getFactVolumeSpeed, getFilteredCameras, getForecasts, getHourlyLOS, getMetrics, getPredictions, getfactEventDataframe
-
-from sktime.forecasting.model_selection import temporal_train_test_split
+from my_functions import dataframeToCSV, getFactVolumeSpeed, getFilteredCameras, getfactEventDataframe
 
 
 class Sidebar:
@@ -24,27 +19,31 @@ class Sidebar:
         self.todayStr = todayStr
         self.databaseCredentials = databaseCredentials
         self.dateFormat = dateFormat
-        
+    
     def renderSidebar(self, option: str):
         if option == 'event':
             with st.sidebar:
                 with st.form(key='slicer'):
-                    selectedRoads = st.multiselect('Which road you want to view?',
-                                                    self.availableRoads, 
-                                                    [self.availableRoads[0]])
-                    selectedDatetime = st.select_slider('Timestamp', 
-                                                        self.hourlyDatetimeList,
-                                                        value=(self.todayMinus2Str, self.todayStr))
-                    selectedDestinations = st.multiselect('Inbound or Outbound of KL?',
-                                                        ['IN', 'OUT'],
-                                                        ['IN'])
+                    selectedRoads = st.multiselect(
+                        'Which road you want to view?',
+                        self.availableRoads, 
+                        [self.availableRoads[0]]
+                    )
+                    selectedDatetime = st.select_slider(
+                        'Timestamp', 
+                        self.hourlyDatetimeList,
+                        value=(self.todayMinus2Str, self.todayStr)
+                    )
+                    selectedDestinations = st.multiselect(
+                        'Inbound or Outbound of KL?',
+                        ['IN', 'OUT'],
+                        ['IN']
+                    )
+                    
                     submitButton = st.form_submit_button("Submit")
 
                     if submitButton:
-                        dimCamera = getFilteredCameras(
-                            selectedRoads,
-                            self.databaseCredentials
-                        )
+                        dimCamera = getFilteredCameras(selectedRoads, self.databaseCredentials)
             
                         factEvent = getfactEventDataframe(
                             self.dateFormat,
@@ -78,7 +77,12 @@ class Sidebar:
                         ['IN']
                     )
                     
-                    daysToForecast = st.slider('How many days you want to forecast ahead?', 1, 7, 1)
+                    daysToForecast = st.slider(
+                        'How many days you want to forecast ahead?', 
+                        1, 
+                        7, 
+                        1
+                    )
                     hoursToForecast = daysToForecast * 24
                     
                     submitButton = st.form_submit_button("Submit")
@@ -94,6 +98,6 @@ class Sidebar:
                         )
                         factVolumeSpeedCSV = dataframeToCSV(factVolumeSpeed)
                                                 
-                        return dimCamera, factVolumeSpeed, factVolumeSpeedCSV
+                        return dimCamera, factVolumeSpeed, factVolumeSpeedCSV, selectedDestinations, hoursToForecast
         else:
             raise ValueError('Invalid Sidebar Option')

@@ -1,11 +1,10 @@
 import pandas as pd
+
 import streamlit as st
 
 import streamlit_authenticator as stauth
 
-from displayMetrics import displayStreetsAndCameras
-
-from my_functions import generateHourlyDatetime
+from my_functions import displayStreetsAndCameras, generateHourlyDatetime
 
 from authenticator import Authenticator
 
@@ -20,7 +19,7 @@ from event import Event
 
 def main():
     # hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
-    DATEFORMAT = '%Y-%m-%d %H:%M:%S'
+    DATEFORMAT = '%Y-%m-%d %H:00:00'
     NODATAMESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
     eventCountString = 'Event Counts'
     hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(DATEFORMAT)

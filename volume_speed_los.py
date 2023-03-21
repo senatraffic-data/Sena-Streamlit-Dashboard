@@ -1,7 +1,11 @@
+from datetime import timedelta
+
 import folium
+
 from matplotlib import pyplot as plt
 
 import numpy as np
+
 import pandas as pd
 
 import streamlit as st
@@ -12,13 +16,16 @@ from streamlit_folium import folium_static
 
 import plotly.express as px
 
+from my_functions import getForecasts, getHourlyLOS, getMetrics, getPredictions
+
+from sktime.forecasting.model_selection import temporal_train_test_split
+
 
 class VolumeSpeedLOS:
     def __init__(self, factVolumeSpeed, dimCamera) -> None:
         self.factVolumeSpeed = factVolumeSpeed
         self.dimCamera = dimCamera
         self.dfHourlyLOS = None
-        
         
     def displayOverallVolumeSpeedMetrics(self):
         st.subheader('Overall Metrics')
@@ -75,7 +82,6 @@ class VolumeSpeedLOS:
         with maximumLOSColumn:
             st.metric(label='Maximum LOS', value=maximumLOS)
         
-    
     def displayHeatMap(self):
         st.subheader('Heat Map')
         
@@ -100,9 +106,11 @@ class VolumeSpeedLOS:
         center = subsetted.values[0, 0: 2]
 
         # Create a folium map
-        baseMap = folium.Map(location=center, 
-                    zoom_start=12, 
-                    tiles='OpenStreetMap')
+        baseMap = folium.Map(
+            location=center, 
+            zoom_start=12, 
+            tiles='OpenStreetMap'
+        )
         # Add the updated layer to the map
         layer = folium.FeatureGroup(name='Updated Layer')
 
@@ -126,20 +134,21 @@ class VolumeSpeedLOS:
         # Add bubbles to the layer with color based on value
         for cameraID, coordinate in zip(cameraIDs, coordinates):
             radius = coordinate[-1] # Use the value as the radius
-            folium.CircleMarker(location=coordinate[0: 2], 
-                                radius=radius, 
-                                color=colormap(coordinate[-1]),
-                                fill=True, 
-                                fill_color=colormap(coordinate[-1]),
-                                tooltip=f'<b>Camera ID: {cameraID} | LOS %: {coordinate[-1]: .2f}</b>').add_to(layer)
+            folium.CircleMarker(
+                location=coordinate[0: 2], 
+                radius=radius, 
+                color=colormap(coordinate[-1]),
+                fill=True, 
+                fill_color=colormap(coordinate[-1]),
+                tooltip=f'<b>Camera ID: {cameraID} | LOS %: {coordinate[-1]: .2f}</b>'
+            ).add_to(layer)
 
         # Add the layer to the map
         layer.add_to(baseMap)
 
         # Display the map in Streamlit
         folium_static(baseMap)
-        
-        
+
     def displayHourlyVehicleCount(self):
         st.header('Hourly Vehicle Count')
         
@@ -170,14 +179,6 @@ class VolumeSpeedLOS:
         dfHourlyCarCount.index.name = ""
         dfHourlyCarCount.columns = ['b2t', 't2b']
         
-        # fig_car_count, ax_car_count = plt.subplots(1, 1)
-        # df_hourly_car_count.plot(kind='line',
-        #                         title=r'Hourly Car Count (b2t & t2b)',
-        #                         ax=ax_car_count,
-        #                         ylabel='Count')
-        # plt.style.use('dark_background')
-        # st.pyplot(fig_car_count)
-            
         plotlyFigHourlyCarCount = px.line(
             dfHourlyCarCount, 
             template="plotly_dark", 
@@ -190,8 +191,7 @@ class VolumeSpeedLOS:
             sharing="streamlit", 
             theme=None
         )
-        
-        
+
     def displayHourlyLOSInboundOutbound(self):
         st.header('Hourly LOS% Plot for Inbound & Outbound')
         
@@ -220,11 +220,10 @@ class VolumeSpeedLOS:
             theme=None
         )
         
-        
-    def generateTimeSeriesAnalytics(self):
-        dfHourlyLOS = getHourlyLOS(factVolumeSpeed, selectedDestinations)
+    def generateTimeSeriesAnalytics(self, selectedDestinations, hoursToForecast):
+        self.dfHourlyLOS = getHourlyLOS(self.factVolumeSpeed, selectedDestinations)
 
-        yEndogenous = dfHourlyLOS.loc[: , ['IN']]
+        yEndogenous = self.dfHourlyLOS.loc[: , ['IN']]
         yEndogenous.index.name = ""
         yEndogenous.columns = ['Latest Observed Data']
 
@@ -239,9 +238,11 @@ class VolumeSpeedLOS:
 
         lastObservedDatetime = yEndogenous.index[-1]
         offsetDatetime = lastObservedDatetime + timedelta(hours=1) 
-        dateRange = pd.date_range(start=offsetDatetime, 
-                                    periods=hoursToForecast, 
-                                    freq='H')
+        dateRange = pd.date_range(
+            start=offsetDatetime, 
+            periods=hoursToForecast, 
+            freq='H'
+        )
 
         yForecast, predictionIntervalForecast, yCombinedForecast = getForecasts(
             forecaster, 
@@ -249,13 +250,16 @@ class VolumeSpeedLOS:
             dateRange
         )
 
-        y_list = [yTrain, yTest,
-                yPred, predictionInterval, yCombined,
-                yForecast, predictionIntervalForecast, yCombinedForecast,
-                yEndogenous]
+        yList = [
+            yTrain, yTest,
+            yPred, predictionInterval, yCombined,
+            yForecast, predictionIntervalForecast, yCombinedForecast,
+            yEndogenous
+        ]
 
         metrics = getMetrics(yTest, yPred)
         
+        return yList, metrics, forecaster
         
     def displayTimeseriesTesting(self, forecaster, metrics, yList):
         st.header('Time-Series Model Testing')
@@ -266,30 +270,36 @@ class VolumeSpeedLOS:
         st.write(yList[2])
 
         figForecast, axForecast = plt.subplots(1, 1)
-        yList[0].plot(kind='line', 
-                    ax=axForecast,
-                    title=r'Hourly LOS% For Train, Testing, and Prediction',
-                    ylabel='LOS %')
-        yList[1].plot(kind='line', 
-                    ax=axForecast)
-        yList[2].plot(kind='line', 
-                    ax=axForecast)
-        plt.fill_between(yList[3].index,
-                            yList[3].loc[: , ('Coverage', 0.9, 'lower')],
-                            yList[3].loc[: , ('Coverage', 0.9, 'upper')],
-                            alpha=0.25)
+        yList[0].plot(
+            kind='line', 
+            ax=axForecast,
+            title=r'Hourly LOS% For Train, Testing, and Prediction',
+            ylabel='LOS %'
+        )
+        yList[1].plot(kind='line', ax=axForecast)
+        yList[2].plot(kind='line', ax=axForecast)
+        plt.fill_between(
+            yList[3].index,
+            yList[3].loc[: , ('Coverage', 0.9, 'lower')],
+            yList[3].loc[: , ('Coverage', 0.9, 'upper')],
+            alpha=0.25
+        )
         axForecast.legend()
         plt.tight_layout()
         st.pyplot(figForecast)
             
-        plotlyFigHourlyLOSTrainTest = px.line(yList[4],
-                                            template="plotly_dark",
-                                            title=r'Hourly LOS% For Train, Testing, and Prediction')
+        plotlyFigHourlyLOSTrainTest = px.line(
+            yList[4],
+            template="plotly_dark",
+            title=r'Hourly LOS% For Train, Testing, and Prediction'
+        )
         plotlyFigHourlyLOSTrainTest.update_layout(yaxis_title='LOS%')
-        st.plotly_chart(plotlyFigHourlyLOSTrainTest,
-                        use_container_width=True,
-                        sharing="streamlit",
-                        theme=None)
+        st.plotly_chart(
+            plotlyFigHourlyLOSTrainTest,
+            use_container_width=True,
+            sharing="streamlit",
+            theme=None
+        )
             
         col1, col2, col3 = st.columns(3)
         
@@ -304,34 +314,40 @@ class VolumeSpeedLOS:
         with col3:
             st.write('Confidence Interval')
             st.write(yList[3])
-            
-            
+
     def displayTimeseriesForecasting(self, yList):
         st.header('Forecasting')
 
         figForecastAlt, axForecastAlt = plt.subplots(1, 1)
-        yList[-1].plot(kind='line',
-                        ax=axForecastAlt,
-                        title=r'Hourly LOS% For Observed Data & Forecast',
-                        ylabel='LOS %')
-        yList[5].plot(kind='line',
-                    ax=axForecastAlt)
-        plt.fill_between(yList[6].index,
-                            yList[6].loc[: , ('Coverage', 0.9, 'lower')],
-                            yList[6].loc[: , ('Coverage', 0.9, 'upper')],
-                            alpha=0.25)
+        yList[-1].plot(
+            kind='line',
+            ax=axForecastAlt,
+            title=r'Hourly LOS% For Observed Data & Forecast',
+            ylabel='LOS %'
+        )
+        yList[5].plot(kind='line', ax=axForecastAlt)
+        plt.fill_between(
+            yList[6].index,
+            yList[6].loc[: , ('Coverage', 0.9, 'lower')],
+            yList[6].loc[: , ('Coverage', 0.9, 'upper')],
+            alpha=0.25
+        )
         axForecastAlt.legend()
         plt.tight_layout()
         st.pyplot(figForecastAlt)
         
-        plotlyFigHourlyLOSForecast = px.line(yList[7], 
-                                            template="plotly_dark",
-                                            title=r'Hourly LOS% For Observed Data & Forecast')
+        plotlyFigHourlyLOSForecast = px.line(
+            yList[7], 
+            template="plotly_dark",
+            title=r'Hourly LOS% For Observed Data & Forecast'
+        )
         plotlyFigHourlyLOSForecast.update_layout(yaxis_title='LOS%')
-        st.plotly_chart(plotlyFigHourlyLOSForecast,
-                        use_container_width=True,
-                        sharing="streamlit",
-                        theme=None)
+        st.plotly_chart(
+            plotlyFigHourlyLOSForecast,
+            use_container_width=True,
+            sharing="streamlit",
+            theme=None
+        )
         
         col1Alt, col2Alt, col3Alt = st.columns(3)
         

@@ -5,9 +5,8 @@ import pandas as pd
 import streamlit as st
 
 from authenticator import Authenticator
-from displayMetrics import displayHeatMap, displayHourlyLOSInboundOutbound, displayHourlyVehicleCount, displayOverallVolumeSpeedMetrics, displayStreetsAndCameras, displayTimeseriesForecasting, displayTimeseriesTesting
 
-from my_functions import displayVolumeSpeedLOSAnalytics, generateHourlyDatetime
+from my_functions import displayStreetsAndCameras, generateHourlyDatetime
 
 from streamlit_authenticator import SafeLoader
 
@@ -59,7 +58,7 @@ if myAuthenticator.authenticationStatus:
             HOURLYDATEFORMAT
     )
     try:
-        dimCamera, factVolumeSpeed, factVolumeSpeedCSV = sidebar.renderSidebar(option='volume-speed-LOS')
+        dimCamera, factVolumeSpeed, factVolumeSpeedCSV, selectedDestinations, hoursToForecast = sidebar.renderSidebar(option='volume-speed-LOS')
         volumeSpeedLOS = VolumeSpeedLOS(factVolumeSpeed, dimCamera)
     except:
         st.write(NODATAMESSAGE)
@@ -98,7 +97,7 @@ if myAuthenticator.authenticationStatus:
         st.write(DATANOTQUERIEDYET)
         
     try:
-        volumeSpeedLOS.generateTimeSeriesAnalytics()
+        yList, metrics, forecaster = volumeSpeedLOS.generateTimeSeriesAnalytics(selectedDestinations, hoursToForecast)
         volumeSpeedLOS.displayHourlyLOSInboundOutbound()
     except:
         st.write(DATANOTQUERIEDYET)
@@ -123,12 +122,12 @@ if myAuthenticator.authenticationStatus:
         st.write(DATANOTQUERIEDYET)
 
     try:
-        volumeSpeedLOS.displayTimeseriesTesting(forecaster, metrics, y_list)
+        volumeSpeedLOS.displayTimeseriesTesting(forecaster, metrics, yList)
     except:
         st.write(DATANOTQUERIEDYET)
 
     try:
-        volumeSpeedLOS.displayTimeseriesForecasting(y_list)
+        volumeSpeedLOS.displayTimeseriesForecasting(yList)
     except:
         st.write(DATANOTQUERIEDYET)
 
