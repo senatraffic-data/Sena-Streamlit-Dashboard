@@ -1,80 +1,76 @@
 import streamlit as st
 
-from my_functions import dataframeToCSV, getFactVolumeSpeed, getFilteredCameras, getfactEventDataframe
-
 
 class Sidebar:
     def __init__(
         self, 
+        hourlyDatetimeList,
         availableRoads, 
-        hourlyDatetimeList, 
-        todayMinus2Str, 
+        availableDestinations, 
         todayStr, 
+        todayMinus2Str, 
         databaseCredentials, 
-        dateFormat
+        dateFormat 
     ) -> None:
-        self.availableRoads = availableRoads
         self.hourlyDatetimeList = hourlyDatetimeList
-        self.todayMinus2Str = todayMinus2Str
+        self.availableRoads = availableRoads
+        self.availableDestinations = availableDestinations
         self.todayStr = todayStr
+        self.todayMinus2Str = todayMinus2Str
         self.databaseCredentials = databaseCredentials
         self.dateFormat = dateFormat
     
     def renderSidebar(self, option: str):
         if option == 'event':
+            
             with st.sidebar:
+                
                 with st.form(key='slicer'):
-                    selectedRoads = st.multiselect(
-                        'Which road you want to view?',
-                        self.availableRoads, 
-                        [self.availableRoads[0]]
-                    )
                     selectedDatetime = st.select_slider(
                         'Timestamp', 
                         self.hourlyDatetimeList,
                         value=(self.todayMinus2Str, self.todayStr)
                     )
+                    
+                    selectedRoads = st.multiselect(
+                        'Which road you want to view?',
+                        self.availableRoads, 
+                        [self.availableRoads[0]]
+                    )
+                    
                     selectedDestinations = st.multiselect(
                         'Inbound or Outbound of KL?',
-                        ['IN', 'OUT'],
-                        ['IN']
+                        self.availableDestinations,
+                        [self.availableDestinations[0]]
                     )
                     
                     submitButton = st.form_submit_button("Submit")
 
                     if submitButton:
-                        dimCamera = getFilteredCameras(selectedRoads, self.databaseCredentials)
-            
-                        factEvent = getfactEventDataframe(
-                            self.dateFormat,
-                            selectedDatetime,
-                            selectedRoads,
-                            selectedDestinations,
-                            self.databaseCredentials
-                        )
-                        
-                        factEventCSV = dataframeToCSV(factEvent)
-                        
-                        return dimCamera, factEvent, factEventCSV, selectedDestinations
+                        return selectedDatetime, selectedRoads, selectedDestinations
         elif option == 'volume-speed-LOS':
+            
             with st.sidebar:
+                
                 with st.form(key='queryDataKey'):
                     st.write('Choose your relevant filters below then click "Submit". Will take some time...')
+                    
+                    selectedDatetime = st.select_slider(
+                        'Timestamp', 
+                        self.hourlyDatetimeList,
+                        value=(self.todayMinus2Str, self.todayStr)
+                    )
                     
                     selectedRoads = st.multiselect(
                         'Which road you want to view?', 
                         self.availableRoads, 
                         [self.availableRoads[0]]
                     )
-                    selectedDatetime = st.select_slider(
-                        'Timestamp', 
-                        self.hourlyDatetimeList,
-                        value=(self.todayMinus2Str, self.todayStr)
-                    )
+                    
                     selectedDestinations = st.multiselect(
                         'Inbound or Outbound of KL?', 
-                        ['IN', 'OUT'], 
-                        ['IN']
+                        self.availableDestinations, 
+                        [self.availableDestinations[0]]
                     )
                     
                     daysToForecast = st.slider(
@@ -87,17 +83,7 @@ class Sidebar:
                     
                     submitButton = st.form_submit_button("Submit")
 
-                    if submitButton:
-                        dimCamera = getFilteredCameras(selectedRoads, self.databaseCredentials)
-                        
-                        factVolumeSpeed = getFactVolumeSpeed(
-                            selectedRoads, 
-                            selectedDestinations,
-                            self.databaseCredentials, 
-                            selectedDatetime
-                        )
-                        factVolumeSpeedCSV = dataframeToCSV(factVolumeSpeed)
-                                                
-                        return dimCamera, factVolumeSpeed, factVolumeSpeedCSV, selectedDestinations, hoursToForecast
+                    if submitButton:                    
+                        return selectedDatetime, selectedRoads, selectedDestinations, hoursToForecast
         else:
             raise ValueError('Invalid Sidebar Option')

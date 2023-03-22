@@ -6,11 +6,13 @@ import streamlit as st
 
 from authenticator import Authenticator
 
-from my_functions import displayStreetsAndCameras, generateHourlyDatetime
+from my_functions import dataframeToCSV, displayStreetsAndCameras, generateHourlyDatetime
 
 from streamlit_authenticator import SafeLoader
 
 from sidebar import Sidebar
+from timeseries_forecaster import TimeSeriesForecaster
+from volume_displayer import VolumeDisplayer
 
 from volume_speed_los import VolumeSpeedLOS
 
@@ -20,6 +22,7 @@ from volume_speed_los import VolumeSpeedLOS
 # hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
 HOURLYDATEFORMAT = '%Y-%m-%d %H:00:00'
 NODATAMESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
+DATANOTQUERIEDYET = 'Data not queried yet, nothing to display'
 eventCountString = 'Event Counts'
 hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLYDATEFORMAT)
 
@@ -48,34 +51,53 @@ if myAuthenticator.authenticationStatus:
     dfHotspotStreets = pd.read_excel(DATAPATH, sheet_name='Hotspot Congestion')
     dfInOutKL = pd.read_excel(DATAPATH, sheet_name='InOut KL Traffic')
     availableRoads = tuple(dfHotspotStreets['road'].values)
-
+    availableDestinations = ['IN', 'OUT']
+    
     sidebar = Sidebar(
-            availableRoads, 
-            hourlyDatetimeList, 
-            todayMinus2Str, 
-            todayStr, 
-            databaseCredentials, 
-            HOURLYDATEFORMAT
+        hourlyDatetimeList,
+        availableRoads, 
+        availableDestinations, 
+        todayStr, 
+        todayMinus2Str, 
+        databaseCredentials, 
+        HOURLYDATEFORMAT 
     )
+    
     try:
-        dimCamera, factVolumeSpeed, factVolumeSpeedCSV, selectedDestinations, hoursToForecast = sidebar.renderSidebar(option='volume-speed-LOS')
-        volumeSpeedLOS = VolumeSpeedLOS(factVolumeSpeed, dimCamera)
+        selectedDatetime, selectedRoads, selectedDestinations, hoursToForecast = sidebar.renderSidebar(option='volume-speed-LOS')
     except:
         st.write(NODATAMESSAGE)
-
-    DATANOTQUERIEDYET = 'Data not queried yet, nothing to display'
+    
+    volumeSpeedLOS = VolumeSpeedLOS()
+    
+    try:
+        volumeSpeedLOS.getFilteredCameras(selectedRoad=selectedRoads, databaseCredentials=databaseCredentials)
+        
+        factVolumeSpeed = volumeSpeedLOS.getFactVolumeSpeed(
+            selectedDatetime=selectedDatetime,
+            roadSelections=selectedRoads, 
+            destinationSelections=selectedDestinations, 
+            databaseCredentials=databaseCredentials
+        )
+        
+        factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
+    except:
+        st.write(NODATAMESSAGE)
+    
+    volumeDisplayer = VolumeDisplayer(volumeSpeedLOS)
+    timeSeriesForecaster = TimeSeriesForecaster(volumeSpeedLOS)
 
     st.title('Traffic Dashboard')
     
     st.header('Inbound')
-    
+
     try:
         heatMapColumn11 ,heatMapColumn12 = st.columns([1, 1.5], gap='large')
         
         with heatMapColumn11:
-            volumeSpeedLOS.displayOverallVolumeSpeedMetrics()
+            volumeDisplayer.displayOverallVolumeSpeedMetrics(destination='IN')
         with heatMapColumn12:
-            volumeSpeedLOS.displayHeatMap()   
+            volumeDisplayer.displayHeatMap(destination='IN')   
     except:
         st.write(DATANOTQUERIEDYET)
         
@@ -85,48 +107,43 @@ if myAuthenticator.authenticationStatus:
         heatMapColumn21 , heatMapColumn22 = st.columns([1, 1.5], gap='large')
         
         with heatMapColumn21:
-            volumeSpeedLOS.displayOverallVolumeSpeedMetrics()
+            volumeDisplayer.displayOverallVolumeSpeedMetrics(destination='OUT')
         with heatMapColumn22:
-            volumeSpeedLOS.displayHeatMap()
+            volumeDisplayer.displayHeatMap(destination='OUT')
     except:
         st.write(DATANOTQUERIEDYET)
     
     try:    
-        volumeSpeedLOS.displayHourlyVehicleCount()
+        volumeDisplayer.displayHourlyVehicleCount()
+        
+        dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(selectedDestinations=selectedDestinations)
+        
+        volumeDisplayer.displayHourlyLOSInboundOutbound(dfHourlyLOS)
+        
+        displayStreetsAndCameras(
+            dfHotspotStreets,
+            dfInOutKL,
+            volumeSpeedLOS.dimCamera
+        )
+        
+        st.header('Raw Volume-Speed-LOS% Data')
+        st.write(volumeSpeedLOS.factVolumeSpeed)
+        st.download_button(
+            label="Download data as CSV",
+            data=factVolumeSpeedCSV,
+            file_name='volume_speed_los.csv',
+            mime='text/csv'
+        )
     except:
         st.write(DATANOTQUERIEDYET)
         
     try:
-        yList, metrics, forecaster = volumeSpeedLOS.generateTimeSeriesAnalytics(selectedDestinations, hoursToForecast)
-        volumeSpeedLOS.displayHourlyLOSInboundOutbound()
-    except:
-        st.write(DATANOTQUERIEDYET)
-
-    try:
-        displayStreetsAndCameras(
-            dfHotspotStreets,
-            dfInOutKL,
-            dimCamera
+        yList, metrics, forecaster = timeSeriesForecaster.generateTimeSeriesAnalytics(
+            selectedDestinations=selectedDestinations, 
+            hoursToForecast=hoursToForecast
         )
-    except:
-        st.write(DATANOTQUERIEDYET)
-
-    st.header('Raw Volume-Speed-LOS% Data')
-    try:
-        st.write(factVolumeSpeed)
-        st.download_button(label="Download data as CSV",
-                           data=factVolumeSpeedCSV,
-                           file_name='volume_speed_los.csv',
-                           mime='text/csv')
-    except:
-        st.write(DATANOTQUERIEDYET)
-
-    try:
+        
         volumeSpeedLOS.displayTimeseriesTesting(forecaster, metrics, yList)
-    except:
-        st.write(DATANOTQUERIEDYET)
-
-    try:
         volumeSpeedLOS.displayTimeseriesForecasting(yList)
     except:
         st.write(DATANOTQUERIEDYET)

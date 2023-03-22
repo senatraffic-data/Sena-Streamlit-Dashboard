@@ -3,8 +3,9 @@ import pandas as pd
 import streamlit as st
 
 import streamlit_authenticator as stauth
+from event_displayer import EventDisplayer
 
-from my_functions import displayStreetsAndCameras, generateHourlyDatetime
+from my_functions import dataframeToCSV, displayStreetsAndCameras, generateHourlyDatetime
 
 from authenticator import Authenticator
 
@@ -17,7 +18,7 @@ from sidebar import Sidebar
 from event import Event
 
 
-def main():
+def main() -> None:
     # hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
     DATEFORMAT = '%Y-%m-%d %H:00:00'
     NODATAMESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
@@ -49,43 +50,67 @@ def main():
         dfHotspotStreets = pd.read_excel(DATAPATH, sheet_name='Hotspot Congestion')
         dfInOutKL = pd.read_excel(DATAPATH, sheet_name='InOut KL Traffic')
         availableRoads = tuple(dfHotspotStreets['road'].values)
+        availableDestinations = ['IN', 'OUT']
 
         sidebar = Sidebar(
+            hourlyDatetimeList,
             availableRoads, 
-            hourlyDatetimeList, 
-            todayMinus2Str, 
+            availableDestinations, 
             todayStr, 
+            todayMinus2Str, 
             databaseCredentials, 
             DATEFORMAT
-        )
+            )
         
         try:
-            dimCamera, factEvent, factEventCSV, selectedDestinations = sidebar.renderSidebar(option='event')
-            event = Event(factEvent)
+            selectedDatetime, selectedRoads, selectedDestinations = sidebar.renderSidebar(option='event')
         except:
             st.write(NODATAMESSAGE)
+            
+        event = Event()
         
-        # st.write("Streamlit version:", st.__version__)
+        try:
+            event.getFilteredCameras(selectedRoad=selectedRoads, databaseCredentials=databaseCredentials)
+            
+            event.getfactEventDataframe(
+                selectedDatetime=selectedDatetime,
+                selectedRoad=selectedRoads,
+                selectedDestinations=selectedDestinations,
+                dateFormat=DATEFORMAT,
+                databaseCredentials=databaseCredentials
+            )
+            
+            factEventCSV = dataframeToCSV(event.factEvent)
+        except:
+            st.write(NODATAMESSAGE)
 
         st.title('Traffic Dashboard')
         
+        eventDisplayer = EventDisplayer(event)
+        
         try:
-            event.displayOverallMetrics()
-            event.displayEventCountByCameraID()
-            event.displayTreemap()
-            event.displayEventCountByLane()
-            event.displayDetectionConfidenceByEventAndItemType()
-            event.displayHourlyDetectionConfidence()
-            event.displayHourlyEventCount(selectedDestinations, eventCountString)
-            displayStreetsAndCameras(dfHotspotStreets, dfInOutKL, dimCamera)
+            eventDisplayer.displayOverallMetrics()
+            eventDisplayer.displayEventCountByCameraID()
+            eventDisplayer.displayTreemap()
+            eventDisplayer.displayEventCountByLane()
+            eventDisplayer.displayDetectionConfidenceByEventAndItemType()
+            eventDisplayer.displayHourlyDetectionConfidence()
+            eventDisplayer.displayHourlyEventCount(selectedDestinations, eventCountString)
+            
+            displayStreetsAndCameras(
+                dfHotspotStreets, 
+                dfInOutKL, 
+                event.dimCamera
+            )
+            
             st.header('Raw Event Data')
-            st.write(factEvent)
+            st.write(event.factEvent)
             st.download_button(
                 label="Download data as CSV",
                 data=factEventCSV,
                 file_name='event_raw_data.csv',
                 mime='text/csv'
-                )
+            )
         except:
             st.write(NODATAMESSAGE)
             
