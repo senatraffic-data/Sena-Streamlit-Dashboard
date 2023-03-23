@@ -80,7 +80,12 @@ if myAuthenticator.authenticationStatus:
         st.write(NODATAMESSAGE)
     
     volumeDisplayer = VolumeDisplayer(volumeSpeedLOS)
-    dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(selectedDestinations=selectedDestinations)
+    
+    try:
+        dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(selectedDestinations=selectedDestinations)
+    except:
+        st.write(DATANOTQUERIEDYET)
+        
     timeSeriesForecaster = TimeSeriesForecaster(volumeSpeedLOS)
     st.title('Traffic Dashboard')
     st.header('Inbound')

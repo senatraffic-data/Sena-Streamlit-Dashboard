@@ -113,3 +113,24 @@ def mySidebar(
         return dimCamera, selectedDatetime, selectedRoads, selectedDestinations
     except:
         return None, None, None, None
+    
+    
+def getFilteredCameras(selectedRoad, databaseCredentials):
+    if len(selectedRoad) != 1:
+        query1 = f'''
+            SELECT *
+            FROM dim_camera_states AS t1
+            WHERE address IN {tuple(selectedRoad)}
+            ;
+        '''
+    elif len(selectedRoad) == 1:
+        query1 = f'''
+            SELECT *
+            FROM dim_camera_states AS t1
+            WHERE address = '{selectedRoad[0]}'
+            ;
+        '''
+    else:
+        raise ValueError
+
+    return sqlToDataframe(databaseCredentials, query1)
