@@ -44,15 +44,12 @@ class Event:
             end=selectedDatetime[-1],
             freq='H'
         ).strftime(dateFormat)
-        
         hourlyDatetimeTuple = tuple(hourlyDatetime)
-
         eventQuery = self.getMainEventQuery(
             hourlyDatetimeTuple,
             selectedRoad, 
             selectedDestinations
         )
-        
         self.factEvent = sqlToDataframe(databaseCredentials, eventQuery)
     
     def getMainEventQuery(self, hourlyDatetimeTuple, selectedRoad, selectedDestination) -> str:

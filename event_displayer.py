@@ -19,15 +19,12 @@ class EventDisplayer:
         
     def displayOverallMetrics(self):
         st.header('Overall Metrics')
-        
         totalNumberOfEvents = self.event.factEvent.shape[0]
         eventCountByEventType = self.event.factEvent.groupby('event_type')['camera_id'].count()
         availableEvents = list(eventCountByEventType.index)
         numberOfAvailableEvents = len(availableEvents)
         eventCountValues = eventCountByEventType.values
-
         st.metric(label='Total Number of Events', value=totalNumberOfEvents)
-
         eventColumns = st.columns(numberOfAvailableEvents)
 
         for i, (eventName, eventCount) in enumerate(zip(availableEvents, eventCountValues)):
@@ -37,7 +34,6 @@ class EventDisplayer:
         eventsWithConfidence = list(confidenceByEventType.index)
         confidenceValues = confidenceByEventType.values
         numberOfEventsWithConfidence = len(eventsWithConfidence)
-
         confidenceColumns = st.columns(numberOfEventsWithConfidence)
 
         for i, (eventName, event_confidence) in enumerate(zip(eventsWithConfidence, confidenceValues)):
@@ -53,7 +49,7 @@ class EventDisplayer:
         
         with leftColumn2:
             st.bar_chart(self.event.factEvent['camera_id'].value_counts(dropna=False))
-            
+        
         with rightColumn2:
             plt.style.use('dark_background')
             fig, ax = plt.subplots(1, 1)
@@ -65,7 +61,6 @@ class EventDisplayer:
             st.pyplot(fig)
         
         eventCountString = 'Event Counts'
-        
         plotlyFigEventCountByCameraID = px.bar(
             eventCountByCameraID, 
             orientation='v',
@@ -74,16 +69,13 @@ class EventDisplayer:
                 'value': eventCountString
             }
         )
-        
         st.plotly_chart(
             plotlyFigEventCountByCameraID, 
             use_container_width=True,
             sharing="streamlit", 
             theme=None
         )
-        
         st.write(eventCountByCameraID)
-        
         eventCountByCameraIDCSV = dataframeToCSV(eventCountByCameraID)
         st.download_button(
             label="Download data as CSV",
@@ -97,7 +89,6 @@ class EventDisplayer:
         eventCountByLane = self.event.factEvent\
                            .groupby(['event_type', 'zone'], as_index=False)\
                            .agg({'camera_id': 'count'})
-                           
         eventCountByLaneCSV = dataframeToCSV(eventCountByLane)
         treemapFig = px.treemap(
             eventCountByLane,
@@ -107,7 +98,6 @@ class EventDisplayer:
             height=750
         )
         st.plotly_chart(treemapFig, use_container_width=True)
-        
         st.write(eventCountByLane)
         st.download_button(
             label="Download data as CSV",
@@ -118,21 +108,16 @@ class EventDisplayer:
         
     def displayEventCountByLane(self):
         st.header('Event Count By Lanes')
-
         b2tLaneFilter = self.event.factEvent['zone'].str.startswith('b2t')
         t2bLaneFilter = self.event.factEvent['zone'].str.startswith('t2b')
-        
         b2tEvents  = self.event.factEvent.loc[b2tLaneFilter]
         t2bEvents = self.event.factEvent.loc[t2bLaneFilter]
-        
         b2tEventCountByLane = pd.crosstab(
             b2tEvents['zone'], 
             b2tEvents['event_type']
         ).sort_values(by='zone', ascending=False)
         t2bEventCountByLane = pd.crosstab(t2bEvents['zone'], t2bEvents['event_type'])
-        
         figEventCountByLane, axEventCountByLane = plt.subplots(1, 2)
-        
         b2tEventCountByLane.plot(
             kind='bar', 
             stacked=True, 
@@ -145,7 +130,6 @@ class EventDisplayer:
         )
         plt.tight_layout()
         st.pyplot(figEventCountByLane)
-        
         byLane1, byLane2 = st.columns(2)
             
         with byLane1:
@@ -174,7 +158,6 @@ class EventDisplayer:
             self.event.factEvent['confidence'], 
             aggfunc=np.mean
         )
-
         figConfidence, axConfidence = plt.subplots(1, 1)
         confidencePlot = confidence.plot(
             kind='barh', 
@@ -198,7 +181,6 @@ class EventDisplayer:
 
         plt.tight_layout()
         st.pyplot(figConfidence)
-
         confidenceIndexResetted = confidence.reset_index()
         plotlyFigEventConfidence = px.bar(
             confidenceIndexResetted, 
@@ -216,7 +198,6 @@ class EventDisplayer:
         
     def displayHourlyDetectionConfidence(self):
         st.header('Hourly Detection Confidence')
-        
         self.event.factEvent['datetime'] = pd.to_datetime(self.event.factEvent['datetime'])
         dfHourlyConfidence = self.event.factEvent.pivot_table(
             values=['confidence'],
@@ -226,12 +207,10 @@ class EventDisplayer:
         )
         dfHourlyConfidence = dfHourlyConfidence.asfreq('H')
         dfHourlyConfidence = dfHourlyConfidence.ffill().rolling(3).mean()
-        
         previousColumns = list(dfHourlyConfidence.columns)
         newColumns = [multi_column[-1] for multi_column in previousColumns]
         dfHourlyConfidence.columns = newColumns
         dfHourlyConfidence.index.name = ""
-        
         figHourlyConfidence, axHourlyConfidence = plt.subplots(1, 1)
         dfHourlyConfidence.plot(
             kind='line',
@@ -240,7 +219,6 @@ class EventDisplayer:
             ylabel='Confidence'
         )
         st.pyplot(figHourlyConfidence)
-        
         plotlyFigHourlyConfidence = px.line(dfHourlyConfidence)
         plotlyFigHourlyConfidence.update_layout(yaxis_title="Confidence")
         st.plotly_chart(
@@ -252,22 +230,18 @@ class EventDisplayer:
         
     def displayHourlyEventCount(self, selectedDestinations, eventCountString):
         st.header('Hourly Event Count by Event Type')
-        
         factEventInbound = self.event.factEvent[self.event.factEvent['direction']=='IN']
         factEventOutbound = self.event.factEvent[self.event.factEvent['direction']=='OUT']
-        
         dfHourlyEventCountInbound = pd.crosstab(index=factEventInbound['datetime'], 
                                                 columns=factEventInbound['event_type'])
         dfHourlyEventCountInbound = dfHourlyEventCountInbound.asfreq('H')
         dfHourlyEventCountInbound = dfHourlyEventCountInbound.ffill()
         dfHourlyEventCountInbound.index.name = ''
-            
         dfHourlyEventCountOutbound = pd.crosstab(index=factEventOutbound['datetime'], 
                                                  columns=factEventOutbound['event_type'])
         dfHourlyEventCountOutbound = dfHourlyEventCountOutbound.asfreq('H')
         dfHourlyEventCountOutbound = dfHourlyEventCountOutbound.ffill()
         dfHourlyEventCountOutbound.index.name = ''
-            
         self.singleOrDoubleDestinationPlotting(
             selectedDestinations,
             dfHourlyEventCountInbound,
@@ -294,7 +268,6 @@ class EventDisplayer:
                     ylabel=eventCountString
                 )
                 st.pyplot(figHourlyInbound)
-                
                 plotlyFigHourlyCountInbound = px.line(
                     dfHourlyEventCountInbound, 
                     template="plotly_dark", 
@@ -316,7 +289,6 @@ class EventDisplayer:
                     ax=axHourlyOutbound
                 )
                 st.pyplot(figHourlyOutbound)
-                
                 plotlyFigHourlyCountOutbound = px.line(
                     dfHourlyEventCountOutbound,
                     template="plotly_dark",
@@ -338,7 +310,6 @@ class EventDisplayer:
                 ylabel=eventCountString
             )
             st.pyplot(figHourlyInbound)
-            
             plotlyFigHourlyCountInbound = px.line(
                 dfHourlyEventCountInbound, 
                 template="plotly_dark", 
@@ -359,7 +330,6 @@ class EventDisplayer:
                 ax=axHourlyOutbound
             )
             st.pyplot(figHourlyOutbound)
-            
             plotlyFigHourlyCountOutbound = px.line(
                 dfHourlyEventCountOutbound,
                 template="plotly_dark",

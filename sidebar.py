@@ -31,19 +31,16 @@ class Sidebar:
                         self.hourlyDatetimeList,
                         value=(self.todayMinus2Str, self.todayStr)
                     )
-                    
                     selectedRoads = st.multiselect(
                         'Which road you want to view?',
                         self.availableRoads, 
                         [self.availableRoads[0]]
                     )
-                    
                     selectedDestinations = st.multiselect(
                         'Inbound or Outbound of KL?',
                         self.availableDestinations,
                         [self.availableDestinations[0]]
                     )
-                    
                     submitButton = st.form_submit_button("Submit")
 
                     if submitButton:
@@ -54,25 +51,21 @@ class Sidebar:
                 
                 with st.form(key='queryDataKey'):
                     st.write('Choose your relevant filters below then click "Submit". Will take some time...')
-                    
                     selectedDatetime = st.select_slider(
                         'Timestamp', 
                         self.hourlyDatetimeList,
                         value=(self.todayMinus2Str, self.todayStr)
                     )
-                    
                     selectedRoads = st.multiselect(
                         'Which road you want to view?', 
                         self.availableRoads, 
                         [self.availableRoads[0]]
                     )
-                    
                     selectedDestinations = st.multiselect(
                         'Inbound or Outbound of KL?', 
                         self.availableDestinations, 
                         [self.availableDestinations[0]]
                     )
-                    
                     daysToForecast = st.slider(
                         'How many days you want to forecast ahead?', 
                         1, 
@@ -80,7 +73,6 @@ class Sidebar:
                         1
                     )
                     hoursToForecast = daysToForecast * 24
-                    
                     submitButton = st.form_submit_button("Submit")
 
                     if submitButton:                    

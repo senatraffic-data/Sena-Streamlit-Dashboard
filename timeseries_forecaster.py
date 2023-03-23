@@ -1,5 +1,5 @@
 from datetime import timedelta
-from matplotlib import pyplot as plt
+
 import pandas as pd
 
 from sktime.forecasting.arima import AutoARIMA
@@ -9,10 +9,6 @@ from sktime.forecasting.base import ForecastingHorizon
 from sklearn.metrics import mean_squared_error
 
 from sktime.performance_metrics.forecasting import mean_absolute_percentage_error
-
-import streamlit as st
-
-import plotly.express as px
 
 from sktime.forecasting.model_selection import temporal_train_test_split
 
