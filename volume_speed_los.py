@@ -40,25 +40,19 @@ class VolumeSpeedLOS:
         databaseCredentials
     ):
         dateFormat = '%Y-%m-%d %H:%M:%S'
-        
         hourlyDatetime = pd.date_range(
             start=selectedDatetime[0], 
             end=selectedDatetime[-1], 
             freq='H'
         ).strftime(dateFormat)
-        
         hourlyDatetimeTuple = tuple(hourlyDatetime)
-
         query = _self.getVolumeSpeedLOSQuery(
             hourlyDatetimeTuple,
             roadSelections, 
             destinationSelections
         ) 
-        
         _self.factVolumeSpeed = sqlToDataframe(databaseCredentials, query)
         _self.factVolumeSpeed['datetime'] = pd.to_datetime(_self.factVolumeSpeed['datetime'])
-        
-        return _self.factVolumeSpeed
         
     def getVolumeSpeedLOSQuery(
         self,
@@ -273,7 +267,6 @@ class VolumeSpeedLOS:
         )
         dfHourlyLOS = dfHourlyLOS.asfreq('H').ffill()
         dfHourlyLOSConditioned = self.hourlyLOSConditional(dfHourlyLOS, selectedDestinations)
-        
         return dfHourlyLOSConditioned
         
     def hourlyLOSConditional(self, dfHourlyLOS, selectedDestinations):

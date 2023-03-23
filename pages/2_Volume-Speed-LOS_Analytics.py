@@ -11,6 +11,7 @@ from my_functions import dataframeToCSV, displayStreetsAndCameras, generateHourl
 from streamlit_authenticator import SafeLoader
 
 from sidebar import Sidebar
+from timeseries_displayer import TimeSeriesDisplayer
 from timeseries_forecaster import TimeSeriesForecaster
 from volume_displayer import VolumeDisplayer
 
@@ -34,25 +35,21 @@ myAuthenticator.authenticate(filePath=userLoginsYamlPath, fileLoader=streamlitLo
 if myAuthenticator.authenticationStatus:
     myAuthenticator.streamlitAuthenticator.logout('Logout', 'main')
     st.write(f'Welcome *{myAuthenticator.name}*')
-
     databaseCredentials = {
         'HOSTNAME': st.secrets.mysql.HOSTNAME,
         'USERNAME': st.secrets.mysql.USERNAME,
         'USERPASSWORD': st.secrets.mysql.USERPASSWORD,
         'DATABASENAME': st.secrets.mysql.DATABASENAME
     }
-    
     DATAPATH = os.path.join(
         os.getcwd(), 
         'data', 
         'Important_Roads.xlsx'
     )
-    
     dfHotspotStreets = pd.read_excel(DATAPATH, sheet_name='Hotspot Congestion')
     dfInOutKL = pd.read_excel(DATAPATH, sheet_name='InOut KL Traffic')
     availableRoads = tuple(dfHotspotStreets['road'].values)
     availableDestinations = ['IN', 'OUT']
-    
     sidebar = Sidebar(
         hourlyDatetimeList,
         availableRoads, 
@@ -72,28 +69,24 @@ if myAuthenticator.authenticationStatus:
     
     try:
         volumeSpeedLOS.getFilteredCameras(selectedRoad=selectedRoads, databaseCredentials=databaseCredentials)
-        
-        factVolumeSpeed = volumeSpeedLOS.getFactVolumeSpeed(
+        volumeSpeedLOS.getFactVolumeSpeed(
             selectedDatetime=selectedDatetime,
             roadSelections=selectedRoads, 
             destinationSelections=selectedDestinations, 
             databaseCredentials=databaseCredentials
         )
-        
         factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
     except:
         st.write(NODATAMESSAGE)
     
     volumeDisplayer = VolumeDisplayer(volumeSpeedLOS)
+    dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(selectedDestinations=selectedDestinations)
     timeSeriesForecaster = TimeSeriesForecaster(volumeSpeedLOS)
-
     st.title('Traffic Dashboard')
-    
     st.header('Inbound')
 
     try:
         heatMapColumn11 ,heatMapColumn12 = st.columns([1, 1.5], gap='large')
-        
         with heatMapColumn11:
             volumeDisplayer.displayOverallVolumeSpeedMetrics(destination='IN')
         with heatMapColumn12:
@@ -105,7 +98,6 @@ if myAuthenticator.authenticationStatus:
     
     try:
         heatMapColumn21 , heatMapColumn22 = st.columns([1, 1.5], gap='large')
-        
         with heatMapColumn21:
             volumeDisplayer.displayOverallVolumeSpeedMetrics(destination='OUT')
         with heatMapColumn22:
@@ -115,17 +107,12 @@ if myAuthenticator.authenticationStatus:
     
     try:    
         volumeDisplayer.displayHourlyVehicleCount()
-        
-        dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(selectedDestinations=selectedDestinations)
-        
         volumeDisplayer.displayHourlyLOSInboundOutbound(dfHourlyLOS)
-        
         displayStreetsAndCameras(
             dfHotspotStreets,
             dfInOutKL,
             volumeSpeedLOS.dimCamera
         )
-        
         st.header('Raw Volume-Speed-LOS% Data')
         st.write(volumeSpeedLOS.factVolumeSpeed)
         st.download_button(
@@ -138,24 +125,24 @@ if myAuthenticator.authenticationStatus:
         st.write(DATANOTQUERIEDYET)
         
     try:
-        yList, metrics, forecaster = timeSeriesForecaster.generateTimeSeriesAnalytics(
-            selectedDestinations=selectedDestinations, 
-            hoursToForecast=hoursToForecast
-        )
-        
-        volumeSpeedLOS.displayTimeseriesTesting(forecaster, metrics, yList)
-        volumeSpeedLOS.displayTimeseriesForecasting(yList)
+        timeSeriesForecaster.trainTestSplitData(dfHourlyLOS)
+        timeSeriesForecaster.fitPredict()
+        timeSeriesForecaster.getForecasts(hoursToForecast=hoursToForecast)
+        timeSeriesForecaster.getMetrics()
+        timeSeriesDisplayer = TimeSeriesDisplayer(timeSeriesForecaster)
+        timeSeriesDisplayer.displayTimeseriesTesting()
+        timeSeriesDisplayer.displayTimeseriesForecasting()
     except:
         st.write(DATANOTQUERIEDYET)
 
-    ## Use the below if-else block for a more personalized experience for different users (privilege based on username)
-    ## Commented out for now
-    # if username == 'jsmith':
-    #     st.write(f'Welcome *{name}*')
-    #     st.title('Application 1')
-    # elif username == 'rbriggs':
-    #     st.write(f'Welcome *{name}*')
-    #     st.title('Application 2')
+        ## Use the below if-else block for a more personalized experience for different users (privilege based on username)
+        ## Commented out for now
+        # if username == 'jsmith':
+        #     st.write(f'Welcome *{name}*')
+        #     st.title('Application 1')
+        # elif username == 'rbriggs':
+        #     st.write(f'Welcome *{name}*')
+        #     st.title('Application 2')
 elif myAuthenticator.authenticationStatus == False:
     st.error('Username/password is incorrect')
 elif myAuthenticator.authenticationStatus == None:

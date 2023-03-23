@@ -33,25 +33,21 @@ def main() -> None:
     if myAuthenticator.authenticationStatus:
         myAuthenticator.streamlitAuthenticator.logout('Logout', 'main')
         st.write(f'Welcome *{myAuthenticator.name}*')
-        
         databaseCredentials = {
             'HOSTNAME': st.secrets.mysql.HOSTNAME,
             'USERNAME': st.secrets.mysql.USERNAME,
             'USERPASSWORD': st.secrets.mysql.USERPASSWORD,
             'DATABASENAME': st.secrets.mysql.DATABASENAME
         }
-        
         DATAPATH = os.path.join(
             os.getcwd(),
             'data',
             'Important_Roads.xlsx'
         )
-
         dfHotspotStreets = pd.read_excel(DATAPATH, sheet_name='Hotspot Congestion')
         dfInOutKL = pd.read_excel(DATAPATH, sheet_name='InOut KL Traffic')
         availableRoads = tuple(dfHotspotStreets['road'].values)
         availableDestinations = ['IN', 'OUT']
-
         sidebar = Sidebar(
             hourlyDatetimeList,
             availableRoads, 
@@ -71,7 +67,6 @@ def main() -> None:
         
         try:
             event.getFilteredCameras(selectedRoad=selectedRoads, databaseCredentials=databaseCredentials)
-            
             event.getfactEventDataframe(
                 selectedDatetime=selectedDatetime,
                 selectedRoad=selectedRoads,
@@ -79,13 +74,11 @@ def main() -> None:
                 dateFormat=DATEFORMAT,
                 databaseCredentials=databaseCredentials
             )
-            
             factEventCSV = dataframeToCSV(event.factEvent)
         except:
             st.write(NODATAMESSAGE)
 
         st.title('Traffic Dashboard')
-        
         eventDisplayer = EventDisplayer(event)
         
         try:
@@ -96,13 +89,11 @@ def main() -> None:
             eventDisplayer.displayDetectionConfidenceByEventAndItemType()
             eventDisplayer.displayHourlyDetectionConfidence()
             eventDisplayer.displayHourlyEventCount(selectedDestinations, eventCountString)
-            
             displayStreetsAndCameras(
                 dfHotspotStreets, 
                 dfInOutKL, 
                 event.dimCamera
             )
-            
             st.header('Raw Event Data')
             st.write(event.factEvent)
             st.download_button(
@@ -114,8 +105,8 @@ def main() -> None:
         except:
             st.write(NODATAMESSAGE)
             
-        ## Use the below if-else block for a more personalized experience for different users (privilege based on username)
-        ## Commented out for now
+        # Use the below if-else block for a more personalized experience for different users (privilege based on username)
+        # Commented out for now
         # if username == 'jsmith':
         #     st.write(f'Welcome *{name}*')
         #     st.title('Application 1')
