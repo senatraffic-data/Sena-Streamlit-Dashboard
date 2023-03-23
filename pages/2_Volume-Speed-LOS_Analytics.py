@@ -48,9 +48,6 @@ if myAuthenticator.authenticationStatus:
     st.markdown("[Time-Series Model Testing](#time-series-model-testing)")
     st.markdown("[Forecasting](#forecasting)")
     
-    
-    
-    
     databaseCredentials = {
         'HOSTNAME': st.secrets.mysql.HOSTNAME,
         'USERNAME': st.secrets.mysql.USERNAME,
