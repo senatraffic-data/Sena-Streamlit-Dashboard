@@ -79,6 +79,18 @@ def main() -> None:
             st.write(NODATAMESSAGE)
 
         st.title('Traffic Dashboard')
+        
+        st.header('Quick Links')
+        st.markdown("[Overall Metrics](#overall-metrics)")
+        st.markdown("[Event Count per Camera ID](#event-counts-per-camera-id)")
+        st.markdown("[Event Count per Lane Treemap](#event-count-per-lane-treemap)")
+        st.markdown("[Event Count By Lanes](#event-count-by-lanes)")
+        st.markdown("[Event Detection Confidence by Event Type and Item Type](#event-detection-confidence-by-event-type-and-item-type)")
+        st.markdown("[Hourly Detection Confidence](#hourly-detection-confidence)")
+        st.markdown("[Hourly Event Count by Event Type](#hourly-event-count-by-event-type)")
+        st.markdown("[Important Streets](#important-streets)")
+        st.markdown("[Cameras In Selected Road](#cameras-in-selected-road)")
+        st.markdown("[Raw Event Data](#raw-event-data)")
         eventDisplayer = EventDisplayer(event)
         
         try:

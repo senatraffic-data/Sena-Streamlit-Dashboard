@@ -85,7 +85,7 @@ class EventDisplayer:
         )
 
     def displayTreemap(self):
-        st.header('Event Counts per Lane/Zone Treemap')
+        st.header('Event Count per Lane Treemap')
         eventCountByLane = self.event.factEvent\
                            .groupby(['event_type', 'zone'], as_index=False)\
                            .agg({'camera_id': 'count'})

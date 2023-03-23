@@ -5,7 +5,6 @@ from my_functions import sqlToDataframe
 import streamlit as st
 
 
-@st.cache_resource
 class Event:
     def __init__(self) -> None:
         self.factEvent = None

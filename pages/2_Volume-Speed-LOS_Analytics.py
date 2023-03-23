@@ -35,21 +35,40 @@ myAuthenticator.authenticate(filePath=userLoginsYamlPath, fileLoader=streamlitLo
 if myAuthenticator.authenticationStatus:
     myAuthenticator.streamlitAuthenticator.logout('Logout', 'main')
     st.write(f'Welcome *{myAuthenticator.name}*')
+    st.title('Traffic Dashboard')
+    
+    st.header('Quick Links')
+    st.markdown("[Inbound Metrics](#inbound)")
+    st.markdown("[Outbound Metrics](#outbound)")
+    st.markdown("[Hourly Vehicle Count](#hourly-vehicle-count)")
+    st.markdown("[Hourly LOS % Plot](#hourly-los-plot)")
+    st.markdown("[Important Streets](#important-streets)")
+    st.markdown("[Cameras In Selected Road](#cameras-in-selected-road)")
+    st.markdown("[Raw Volume-Speed-LOS% Data](#raw-volume-speed-los-data)")
+    st.markdown("[Time-Series Model Testing](#time-series-model-testing)")
+    st.markdown("[Forecasting](#forecasting)")
+    
+    
+    
+    
     databaseCredentials = {
         'HOSTNAME': st.secrets.mysql.HOSTNAME,
         'USERNAME': st.secrets.mysql.USERNAME,
         'USERPASSWORD': st.secrets.mysql.USERPASSWORD,
         'DATABASENAME': st.secrets.mysql.DATABASENAME
     }
+    
     DATAPATH = os.path.join(
         os.getcwd(), 
         'data', 
         'Important_Roads.xlsx'
     )
+    
     dfHotspotStreets = pd.read_excel(DATAPATH, sheet_name='Hotspot Congestion')
     dfInOutKL = pd.read_excel(DATAPATH, sheet_name='InOut KL Traffic')
     availableRoads = tuple(dfHotspotStreets['road'].values)
     availableDestinations = ['IN', 'OUT']
+    
     sidebar = Sidebar(
         hourlyDatetimeList,
         availableRoads, 
@@ -80,14 +99,13 @@ if myAuthenticator.authenticationStatus:
         st.write(NODATAMESSAGE)
     
     volumeDisplayer = VolumeDisplayer(volumeSpeedLOS)
-    
     try:
         dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(selectedDestinations=selectedDestinations)
     except:
         st.write(DATANOTQUERIEDYET)
         
     timeSeriesForecaster = TimeSeriesForecaster(volumeSpeedLOS)
-    st.title('Traffic Dashboard')
+    
     st.header('Inbound')
 
     try:
@@ -118,7 +136,7 @@ if myAuthenticator.authenticationStatus:
             dfInOutKL,
             volumeSpeedLOS.dimCamera
         )
-        st.header('Raw Volume-Speed-LOS% Data')
+        st.header('Raw Volume-Speed-LOS Data')
         st.write(volumeSpeedLOS.factVolumeSpeed)
         st.download_button(
             label="Download data as CSV",

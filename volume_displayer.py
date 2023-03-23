@@ -151,7 +151,7 @@ class VolumeDisplayer:
         )
         
     def displayHourlyLOSInboundOutbound(self, dfHourlyLOS):
-        st.header('Hourly LOS% Plot for Inbound & Outbound')
+        st.header('Hourly LOS Plot')
         dfHourlyLOS.index.name = ""
         figTimePlot, axTimePlot = plt.subplots(1, 1)
         dfHourlyLOS.plot(
