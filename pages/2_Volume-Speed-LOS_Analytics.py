@@ -21,14 +21,13 @@ from volume_speed_los import VolumeSpeedLOS
 
 
 # hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
-HOURLYDATEFORMAT = '%Y-%m-%d %H:00:00'
-NODATAMESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
-DATANOTQUERIEDYET = 'Data not queried yet, nothing to display'
-eventCountString = 'Event Counts'
-hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLYDATEFORMAT)
+HOURLY_DATETIME_FORMAT = '%Y-%m-%d %H:00:00'
+NO_DATA_MESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
+hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLY_DATETIME_FORMAT)
 
 myAuthenticator = Authenticator()
-userLoginsYamlPath = os.path.join(os.getcwd(), 'user_logins.yaml')   
+USERS_YAML_PATH = 'user_logins.yaml'
+userLoginsYamlPath = os.path.join(os.getcwd(), USERS_YAML_PATH)   
 streamlitLoader=SafeLoader
 myAuthenticator.authenticate(filePath=userLoginsYamlPath, fileLoader=streamlitLoader)
 
@@ -55,14 +54,20 @@ if myAuthenticator.authenticationStatus:
         'DATABASENAME': st.secrets.mysql.DATABASENAME
     }
     
+    IMPORTANT_ROADS_PATH1 = 'data'
+    IMPORTANT_ROADS_PATH2 = 'Important_Roads.xlsx'
     DATAPATH = os.path.join(
-        os.getcwd(), 
-        'data', 
-        'Important_Roads.xlsx'
+        os.getcwd(),
+        IMPORTANT_ROADS_PATH1,
+        IMPORTANT_ROADS_PATH2
     )
     
-    dfHotspotStreets = pd.read_excel(DATAPATH, sheet_name='Hotspot Congestion')
-    dfInOutKL = pd.read_excel(DATAPATH, sheet_name='InOut KL Traffic')
+    HOTSPOT_CONGESTION = 'Hotspot Congestion'
+    dfHotspotStreets = pd.read_excel(DATAPATH, sheet_name=HOTSPOT_CONGESTION)
+    
+    INOUT_KL = 'InOut KL Traffic'
+    dfInOutKL = pd.read_excel(DATAPATH, sheet_name=INOUT_KL)
+    
     availableRoads = tuple(dfHotspotStreets['road'].values)
     availableDestinations = ['IN', 'OUT']
     
@@ -73,68 +78,76 @@ if myAuthenticator.authenticationStatus:
         todayStr, 
         todayMinus2Str, 
         databaseCredentials, 
-        HOURLYDATEFORMAT 
+        HOURLY_DATETIME_FORMAT 
     )
     
     try:
         selectedDatetime, selectedRoads, selectedDestinations, hoursToForecast = sidebar.renderSidebar(option='volume-speed-LOS')
     except:
-        st.write(NODATAMESSAGE)
+        st.write(NO_DATA_MESSAGE)
     
     volumeSpeedLOS = VolumeSpeedLOS()
     
     try:
-        volumeSpeedLOS.getFilteredCameras(selectedRoad=selectedRoads, databaseCredentials=databaseCredentials)
+        volumeSpeedLOS.getFilteredCameras(selectedRoads, databaseCredentials)
+        
         volumeSpeedLOS.getFactVolumeSpeed(
-            selectedDatetime=selectedDatetime,
-            roadSelections=selectedRoads, 
-            destinationSelections=selectedDestinations, 
-            databaseCredentials=databaseCredentials
+            selectedDatetime,
+            selectedRoads, 
+            selectedDestinations, 
+            databaseCredentials
         )
+        
         factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
     except:
-        st.write(NODATAMESSAGE)
+        st.write(NO_DATA_MESSAGE)
+    
+    try:
+        dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(selectedDestinations)
+    except:
+        st.write(NO_DATA_MESSAGE)
     
     volumeDisplayer = VolumeDisplayer(volumeSpeedLOS)
-    try:
-        dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(selectedDestinations=selectedDestinations)
-    except:
-        st.write(DATANOTQUERIEDYET)
-        
-    timeSeriesForecaster = TimeSeriesForecaster(volumeSpeedLOS)
     
     st.header('Inbound')
 
     try:
         heatMapColumn11 ,heatMapColumn12 = st.columns([1, 1.5], gap='large')
+        
         with heatMapColumn11:
             volumeDisplayer.displayOverallVolumeSpeedMetrics(destination='IN')
+            
         with heatMapColumn12:
             volumeDisplayer.displayHeatMap(destination='IN')   
     except:
-        st.write(DATANOTQUERIEDYET)
+        st.write(NO_DATA_MESSAGE)
         
     st.header('Outbound')
     
     try:
         heatMapColumn21 , heatMapColumn22 = st.columns([1, 1.5], gap='large')
+        
         with heatMapColumn21:
             volumeDisplayer.displayOverallVolumeSpeedMetrics(destination='OUT')
+            
         with heatMapColumn22:
             volumeDisplayer.displayHeatMap(destination='OUT')
     except:
-        st.write(DATANOTQUERIEDYET)
+        st.write(NO_DATA_MESSAGE)
     
     try:    
         volumeDisplayer.displayHourlyVehicleCount()
         volumeDisplayer.displayHourlyLOSInboundOutbound(dfHourlyLOS)
+       
         displayStreetsAndCameras(
             dfHotspotStreets,
             dfInOutKL,
             volumeSpeedLOS.dimCamera
         )
+        
         st.header('Raw Volume-Speed-LOS Data')
         st.write(volumeSpeedLOS.factVolumeSpeed)
+        
         st.download_button(
             label="Download data as CSV",
             data=factVolumeSpeedCSV,
@@ -142,18 +155,21 @@ if myAuthenticator.authenticationStatus:
             mime='text/csv'
         )
     except:
-        st.write(DATANOTQUERIEDYET)
-        
+        st.write(NO_DATA_MESSAGE)
+    
+    timeSeriesForecaster = TimeSeriesForecaster(volumeSpeedLOS)
+    
     try:
         timeSeriesForecaster.trainTestSplitData(dfHourlyLOS)
         timeSeriesForecaster.fitPredict()
-        timeSeriesForecaster.getForecasts(hoursToForecast=hoursToForecast)
+        timeSeriesForecaster.getForecasts(hoursToForecast)
         timeSeriesForecaster.getMetrics()
+        
         timeSeriesDisplayer = TimeSeriesDisplayer(timeSeriesForecaster)
         timeSeriesDisplayer.displayTimeseriesTesting()
         timeSeriesDisplayer.displayTimeseriesForecasting()
     except:
-        st.write(DATANOTQUERIEDYET)
+        st.write(NO_DATA_MESSAGE)
 
         ## Use the below if-else block for a more personalized experience for different users (privilege based on username)
         ## Commented out for now

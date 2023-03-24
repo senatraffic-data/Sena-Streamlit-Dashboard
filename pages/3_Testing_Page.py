@@ -77,7 +77,7 @@ if myAuthenticator.authenticationStatus:
             submitButton = st.form_submit_button("Submit")
 
             if submitButton:
-                cameraCondition = ( dimCamera['address'].isin(userSelectedCameras) )
+                cameraCondition = dimCamera['address'].isin(userSelectedCameras)
                 filteredDimCamera = dimCamera.loc[cameraCondition]
 
     with rightColumn:

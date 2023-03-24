@@ -9,7 +9,8 @@ import pytz
 
 import streamlit as st
 
-# @st.cache_resource
+
+@st.cache_resource
 def createConnection(databaseCredentials):
     connection = None
     
@@ -44,6 +45,7 @@ def sqlToDataframe(databaseCredentials, query):
         print(f"The error '{e}' occurred")
         
     df = pd.DataFrame(result, columns=columnNames)
+    
     return df
 
 
@@ -55,12 +57,21 @@ def dataframeToCSV(df):
 
 def generateHourlyDatetime(dateFormat: str):
     timezone = pytz.timezone("Asia/Kuala_Lumpur")
+    
     today = datetime.now(timezone)
     todayStr = today.strftime(dateFormat)
+    
     todayMinus2 = today - timedelta(days=2)
     todayMinus2Str = todayMinus2.strftime(dateFormat)
-    hourlyDateRange = pd.date_range(start=todayMinus2Str, end=todayStr, freq='H').strftime(dateFormat)
+    
+    hourlyDateRange = pd.date_range(
+        start=todayMinus2Str, 
+        end=todayStr, 
+        freq='H'
+    ).strftime(dateFormat)
+    
     hourlyDatetimeList = list(hourlyDateRange)
+    
     return hourlyDatetimeList, todayStr, todayMinus2Str
 
 
