@@ -1,34 +1,27 @@
 import pandas as pd
 
 import streamlit as st
-
 import streamlit_authenticator as stauth
-from event_displayer import EventDisplayer
-
-from my_functions import dataframeToCSV, displayStreetsAndCameras, generateHourlyDatetime
-
-from authenticator import Authenticator
-
 from streamlit_authenticator import SafeLoader
 
 import os
 
-from sidebar import Sidebar
+from my_functions import dataframeToCSV, displayStreetsAndCameras, generateHourlyDatetime
+
+from event_displayer import EventDisplayer
+
+from authenticator import Authenticator
+
+from sidebar import EventSidebar
 
 from event import Event
 
 
 def main() -> None:
-    # hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
-    HOURLY_DATETIME_FORMAT = '%Y-%m-%d %H:00:00'
-    NO_DATA_MESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
-    eventCountString = 'Event Counts'
-    hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLY_DATETIME_FORMAT)
-    
     myAuthenticator = Authenticator()
     USERS_YAML_PATH = 'user_logins.yaml'
     userLoginsYamlPath = os.path.join(os.getcwd(), USERS_YAML_PATH)   
-    streamlitLoader=SafeLoader
+    streamlitLoader = SafeLoader
     myAuthenticator.authenticate(filePath=userLoginsYamlPath, fileLoader=streamlitLoader)
     
     if myAuthenticator.authenticationStatus:
@@ -72,34 +65,40 @@ def main() -> None:
         availableRoads = tuple(dfHotspotStreets['road'].values)
         availableDestinations = ['IN', 'OUT']
         
-        sidebar = Sidebar(
-            hourlyDatetimeList,
-            availableRoads, 
-            availableDestinations, 
-            todayStr, 
-            todayMinus2Str, 
-            databaseCredentials, 
-            HOURLY_DATETIME_FORMAT
-        )
+        # hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
+        HOURLY_DATETIME_FORMAT = '%Y-%m-%d %H:00:00'
+        NO_DATA_MESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
+        eventCountString = 'Event Counts'
+        hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLY_DATETIME_FORMAT)
+        
+        temporalSpatialInfo = {
+            'hourlyDatetime': hourlyDatetimeList, 
+            'roads': availableRoads, 
+            'destinations': availableDestinations, 
+            'today': todayStr, 
+            'todayMinus2': todayMinus2Str, 
+            'hourlyDatetimeFormat': HOURLY_DATETIME_FORMAT
+        }
+        
+        sidebar = EventSidebar(temporalSpatialInfo)
         
         try:
-            selectedDatetime, selectedRoads, selectedDestinations = sidebar.renderSidebar(option='event')
+            selectedDatetime, selectedRoads, selectedDestinations = sidebar.renderSidebar()
+            
+            userSlicerSelections = {
+                'hourlyDatetime': selectedDatetime, 
+                'roads': selectedRoads, 
+                'destinations': selectedDestinations,
+                'hourlyDatetimeFormat': HOURLY_DATETIME_FORMAT,
+            }
         except:
             st.write(NO_DATA_MESSAGE)
-            
+        
         event = Event()
         
         try:
-            event.getFilteredCameras(selectedRoads, databaseCredentials)
-            
-            event.getfactEventDataframe(
-                selectedDatetime,
-                selectedRoads,
-                selectedDestinations,
-                HOURLY_DATETIME_FORMAT,
-                databaseCredentials
-            )
-            
+            event.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
+            event.getfactEventDataframe(userSlicerSelections, databaseCredentials)
             factEventCSV = dataframeToCSV(event.factEvent)
         except:
             st.write(NO_DATA_MESSAGE)
@@ -113,7 +112,7 @@ def main() -> None:
             eventDisplayer.displayEventCountByLane()
             eventDisplayer.displayDetectionConfidenceByEventAndItemType()
             eventDisplayer.displayHourlyDetectionConfidence()
-            eventDisplayer.displayHourlyEventCount(selectedDestinations, eventCountString)
+            eventDisplayer.displayHourlyEventCount(userSlicerSelections['destinations'], eventCountString)
             
             displayStreetsAndCameras(
                 dfHotspotStreets, 

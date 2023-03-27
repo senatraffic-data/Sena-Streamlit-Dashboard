@@ -10,7 +10,8 @@ from my_functions import dataframeToCSV, displayStreetsAndCameras, generateHourl
 
 from streamlit_authenticator import SafeLoader
 
-from sidebar import Sidebar
+from sidebar import VolumeSidebar
+
 from timeseries_displayer import TimeSeriesDisplayer
 from timeseries_forecaster import TimeSeriesForecaster
 from volume_displayer import VolumeDisplayer
@@ -19,11 +20,6 @@ from volume_speed_los import VolumeSpeedLOS
 
 # import streamlit_authenticator as stauth
 
-
-# hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
-HOURLY_DATETIME_FORMAT = '%Y-%m-%d %H:00:00'
-NO_DATA_MESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
-hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLY_DATETIME_FORMAT)
 
 myAuthenticator = Authenticator()
 USERS_YAML_PATH = 'user_logins.yaml'
@@ -71,30 +67,41 @@ if myAuthenticator.authenticationStatus:
     availableRoads = tuple(dfHotspotStreets['road'].values)
     availableDestinations = ['IN', 'OUT']
     
-    sidebar = Sidebar(
-        hourlyDatetimeList,
-        availableRoads, 
-        availableDestinations, 
-        todayStr, 
-        todayMinus2Str, 
-        databaseCredentials, 
-        HOURLY_DATETIME_FORMAT 
-    )
+    # hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
+    HOURLY_DATETIME_FORMAT = '%Y-%m-%d %H:00:00'
+    NO_DATA_MESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
+    hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLY_DATETIME_FORMAT)
+    
+    temporalSpatialInfo = {
+        'hourlyDatetime': hourlyDatetimeList, 
+        'roads': availableRoads, 
+        'destinations': availableDestinations, 
+        'today': todayStr, 
+        'todayMinus2': todayMinus2Str, 
+        'hourlyDatetimeFormat': HOURLY_DATETIME_FORMAT
+    }
+    
+    sidebar = VolumeSidebar(temporalSpatialInfo)
     
     try:
-        selectedDatetime, selectedRoads, selectedDestinations, hoursToForecast = sidebar.renderSidebar(option='volume-speed-LOS')
+        selectedDatetime, selectedRoads, selectedDestinations, hoursToForecast = sidebar.renderSidebar()
+        
+        userSlicerSelections = {
+            'hourlyDatetime': selectedDatetime, 
+            'roads': selectedRoads, 
+            'destinations': selectedDestinations,
+            'hourlyDatetimeFormat': HOURLY_DATETIME_FORMAT,
+        }
     except:
         st.write(NO_DATA_MESSAGE)
     
     volumeSpeedLOS = VolumeSpeedLOS()
     
     try:
-        volumeSpeedLOS.getFilteredCameras(selectedRoads, databaseCredentials)
+        volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
         
         volumeSpeedLOS.getFactVolumeSpeed(
-            selectedDatetime,
-            selectedRoads, 
-            selectedDestinations, 
+            userSlicerSelections, 
             databaseCredentials
         )
         
@@ -103,7 +110,7 @@ if myAuthenticator.authenticationStatus:
         st.write(NO_DATA_MESSAGE)
     
     try:
-        dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(selectedDestinations)
+        dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(userSlicerSelections['destinations'])
     except:
         st.write(NO_DATA_MESSAGE)
     
@@ -157,7 +164,7 @@ if myAuthenticator.authenticationStatus:
     except:
         st.write(NO_DATA_MESSAGE)
     
-    timeSeriesForecaster = TimeSeriesForecaster(volumeSpeedLOS)
+    timeSeriesForecaster = TimeSeriesForecaster()
     
     try:
         timeSeriesForecaster.trainTestSplitData(dfHourlyLOS)

@@ -13,10 +13,12 @@ class TimeSeriesDisplayer:
     
     def displayTimeseriesTesting(self):
         st.header('Time-Series Model Testing')
+        
         st.write(self.timeSeriesForecaster.forecaster.summary())
         st.write(f'The testing MAPE is {self.timeSeriesForecaster.mape}')
         st.write(f'The testing MSE is {self.timeSeriesForecaster.mse}')
         st.write(self.timeSeriesForecaster.yPred)
+        
         figForecast, axForecast = plt.subplots(1, 1)
         self.timeSeriesForecaster.yTrain.plot(
             kind='line', 
@@ -35,6 +37,7 @@ class TimeSeriesDisplayer:
         axForecast.legend()
         plt.tight_layout()
         st.pyplot(figForecast)
+        
         plotlyFigHourlyLOSTrainTest = px.line(
             self.timeSeriesForecaster.yCombined,
             template="plotly_dark",
@@ -47,19 +50,24 @@ class TimeSeriesDisplayer:
             sharing="streamlit",
             theme=None
         )
+        
         col1, col2, col3 = st.columns(3)
+        
         with col1:
             st.write('Testing Data')
             st.write(self.timeSeriesForecaster.yTest)
+            
         with col2:
             st.write('Predictions')
             st.write(self.timeSeriesForecaster.yPred)
+            
         with col3:
             st.write('Confidence Interval')
             st.write(self.timeSeriesForecaster.predictionInterval)
 
     def displayTimeseriesForecasting(self):
         st.header('Forecasting')
+        
         figForecastAlt, axForecastAlt = plt.subplots(1, 1)
         self.timeSeriesForecaster.yEndogenous.plot(
             kind='line',
@@ -77,6 +85,7 @@ class TimeSeriesDisplayer:
         axForecastAlt.legend()
         plt.tight_layout()
         st.pyplot(figForecastAlt)
+        
         plotlyFigHourlyLOSForecast = px.line(
             self.timeSeriesForecaster.yCombinedForecast, 
             template="plotly_dark",
@@ -89,13 +98,17 @@ class TimeSeriesDisplayer:
             sharing="streamlit",
             theme=None
         )
+        
         col1Alt, col2Alt, col3Alt = st.columns(3)
+        
         with col1Alt:
             st.write('All Observed Data')
             st.write(self.timeSeriesForecaster.yEndogenous)
+            
         with col2Alt:
             st.write('Forecasted Values')
             st.write(self.timeSeriesForecaster.yForecast)
+            
         with col3Alt:
             st.write('Confidence Interval')
             st.write(self.timeSeriesForecaster.predictionIntevalForecast)
