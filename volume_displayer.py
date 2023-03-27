@@ -99,7 +99,7 @@ class VolumeDisplayer:
         subsetted1 = groupbyCamerasIndexResetted[['camera_id', 'latitude', 'longitude', 'LOS']].dropna()
         subsetted = subsetted1[['latitude', 'longitude', 'LOS']]
         cameraIDs = subsetted1['camera_id'].values
-        center = subsetted.values[0, 0: 2]
+        center = np.mean(subsetted.values[: , 0: 2], axis=0)
         
         baseMap = folium.Map(
             location=center, 
@@ -156,15 +156,17 @@ class VolumeDisplayer:
         dfHourlyVehicleCount = self.volumeSpeedLOS.factVolumeSpeed.groupby(['datetime'])[columnsToAggregate].sum()
         dfHourlyVehicleCount.index.name = ""
         dfHourlyVehicleCount.columns = ['bus', 'car', 'lorry','truck', 'van', 'motorbike', 'total']
-        figCarCount, axCarCount = plt.subplots(1, 1)
         
+        averageVehicleCount = dfHourlyVehicleCount.mean(axis=0)['car']
+        
+        figCarCount, axCarCount = plt.subplots(1, 1)
         dfHourlyVehicleCount.plot(
             kind='line',
             title=r'Hourly Vehicle Count',
             ax=axCarCount,
             ylabel='Count'
         )
-        
+        axCarCount.axhline(y=averageVehicleCount, color='g', linestyle='--')
         plt.style.use('dark_background')
         st.pyplot(figCarCount)
         
@@ -174,6 +176,7 @@ class VolumeDisplayer:
             title='Hourly Vehicle Count'
         )
         
+        plotlyFigHourlyCarCount.add_hline(y=averageVehicleCount, line_dash="dash", line_color="green")
         plotlyFigHourlyCarCount.update_layout(yaxis_title='Vehicle Count')
         
         st.plotly_chart(
@@ -196,6 +199,18 @@ class VolumeDisplayer:
             ylabel='LOS %'
         )
         plt.style.use('dark_background')
+        
+        yThresholds = [24.36, 39.94, 57.73, 77.72, 100, 125]
+        hexColorCodes = ['#00901a', '#6db046', '#a38600', '#d9d61c', '#e66c37', '#ff0000']
+        
+        for yThreshold, hexColorCode in zip(yThresholds, hexColorCodes):
+            plt.axhline(
+                y=yThreshold, 
+                color=hexColorCode, 
+                linestyle='--', 
+                alpha=0.5
+            )
+            
         st.pyplot(figTimePlot)
         
         plotlyFigHourlyLOS = px.line(
@@ -203,6 +218,21 @@ class VolumeDisplayer:
             template="plotly_dark", 
             title='Hourly LOS'
         )
+        
+        for yThreshold, hexColorCode in zip(yThresholds, hexColorCodes):
+            plotlyFigHourlyLOS.add_shape(
+                type="line",
+                x0=dfHourlyLOS.index[0],
+                y0=yThreshold,
+                x1=dfHourlyLOS.index[-1],
+                y1=yThreshold,
+                line=dict(
+                    color=hexColorCode,
+                    width=1,
+                    dash="dashdot",
+                ),
+            )
+
         plotlyFigHourlyLOS.update_layout(yaxis_title='LOS')
         st.plotly_chart(
             plotlyFigHourlyLOS, 
