@@ -83,30 +83,36 @@ if myAuthenticator.authenticationStatus:
     
     sidebar = VolumeSidebar(temporalSpatialInfo)
     
-    selectedDatetime, selectedRoads, selectedDestinations, hoursToForecast = sidebar.renderSidebar()
-    
-    userSlicerSelections = {
-        'hourlyDatetime': selectedDatetime, 
-        'roads': selectedRoads, 
-        'destinations': selectedDestinations,
-        'hourlyDatetimeFormat': HOURLY_DATETIME_FORMAT,
-    }
-    
+    try:
+        selectedDatetime, selectedRoads, selectedDestinations, hoursToForecast = sidebar.renderSidebar()
+        
+        userSlicerSelections = {
+            'hourlyDatetime': selectedDatetime, 
+            'roads': selectedRoads, 
+            'destinations': selectedDestinations,
+            'hourlyDatetimeFormat': HOURLY_DATETIME_FORMAT,
+        }
+    except:
+        st.write(NO_DATA_MESSAGE)
     
     volumeSpeedLOS = VolumeSpeedLOS()
     
-    volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
+    try:
+        volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
+        
+        volumeSpeedLOS.getFactVolumeSpeed(
+            userSlicerSelections, 
+            databaseCredentials
+        )
+        
+        factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
+    except:
+        st.write(NO_DATA_MESSAGE)
     
-    volumeSpeedLOS.getFactVolumeSpeed(
-        userSlicerSelections, 
-        databaseCredentials
-    )
-    
-    factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
-    
-    
-    dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(userSlicerSelections['destinations'])
-    st.write(NO_DATA_MESSAGE)
+    try:
+        dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(userSlicerSelections['destinations'])
+    except:
+        st.write(NO_DATA_MESSAGE)
     
     volumeDisplayer = VolumeDisplayer(volumeSpeedLOS)
     
