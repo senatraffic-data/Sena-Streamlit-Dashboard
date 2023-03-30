@@ -30,32 +30,22 @@ class Event:
 
         self.dimCamera = sqlToDataframe(databaseCredentials, query1)
     
-    def getfactEventDataframe(
-        self,
-        selectedDatetime,
-        selectedRoad,
-        selectedDestinations,
-        dateFormat,
-        databaseCredentials
-    ):
+    def getfactEventDataframe(self, userSlicerSelections, databaseCredentials):
         hourlyDatetime = pd.date_range(
-            start=selectedDatetime[0],
-            end=selectedDatetime[-1],
+            start=userSlicerSelections['hourlyDatetime'][0],
+            end=userSlicerSelections['hourlyDatetime'][-1],
             freq='H'
-        ).strftime(dateFormat)
+        ).strftime(userSlicerSelections['hourlyDatetimeFormat'])
+        
         hourlyDatetimeTuple = tuple(hourlyDatetime)
-        eventQuery = self.getMainEventQuery(
-            hourlyDatetimeTuple,
-            selectedRoad, 
-            selectedDestinations
-        )
+        eventQuery = self.getMainEventQuery(hourlyDatetimeTuple, userSlicerSelections)
         self.factEvent = sqlToDataframe(databaseCredentials, eventQuery)
     
-    def getMainEventQuery(self, hourlyDatetimeTuple, selectedRoad, selectedDestination) -> str:
-        if len(selectedDestination) == 1:
+    def getMainEventQuery(self, hourlyDatetimeTuple, userSlicerSelections) -> str:
+        if len(userSlicerSelections['destinations']) == 1:
                         
-            if len(selectedRoad) == 1:
-                event_query = f'''SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
+            if len(userSlicerSelections['roads']) == 1:
+                eventQuery = f'''SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
                                                     t2.address,
                                                     t2.camera_id,
                                                     t1.direction,
@@ -70,9 +60,9 @@ class Event:
                                                                 equipment_id,
                                                                 camera_id
                                                         FROM dim_camera_states
-                                                        WHERE address = '{selectedRoad[0]}') AS t2
+                                                        WHERE address = '{userSlicerSelections['roads'][0]}') AS t2
                                             ON t1.camera_id = t2.camera_id
-                                            WHERE t1.direction = '{selectedDestination[0]}'
+                                            WHERE t1.direction = '{userSlicerSelections['destinations'][0]}'
                                                     AND DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') IN {hourlyDatetimeTuple}
                                             GROUP BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00'),
                                                     t2.address,
@@ -83,8 +73,8 @@ class Event:
                                                     t1.item_type
                                             ORDER BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') DESC
                                             ;'''
-            elif len(selectedRoad) != 1:
-                event_query = f'''SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
+            elif len(userSlicerSelections['roads']) != 1:
+                eventQuery = f'''SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
                                                     t2.address,
                                                     t2.camera_id,
                                                     t1.direction,
@@ -99,9 +89,9 @@ class Event:
                                                                 equipment_id,
                                                                 camera_id
                                                         FROM dim_camera_states
-                                                        WHERE address IN {tuple(selectedRoad)}) AS t2
+                                                        WHERE address IN {tuple(userSlicerSelections['roads'])}) AS t2
                                             ON t1.camera_id = t2.camera_id
-                                            WHERE t1.direction = '{selectedDestination[0]}'
+                                            WHERE t1.direction = '{userSlicerSelections['destinations'][0]}'
                                                     AND DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') IN {hourlyDatetimeTuple}
                                             GROUP BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00'),
                                                     t2.address,
@@ -115,10 +105,10 @@ class Event:
             else:
                 print('Error in road length')
                             
-        elif len(selectedDestination) == 2:
+        elif len(userSlicerSelections['destinations']) == 2:
                         
-            if len(selectedRoad) == 1:
-                event_query = f'''SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
+            if len(userSlicerSelections['roads']) == 1:
+                eventQuery = f'''SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
                                                     t2.address,
                                                     t2.camera_id,
                                                     t1.direction,
@@ -133,9 +123,9 @@ class Event:
                                                                 equipment_id,
                                                                 camera_id
                                                         FROM dim_camera_states
-                                                        WHERE address = '{selectedRoad[0]}') AS t2
+                                                        WHERE address = '{userSlicerSelections['roads'][0]}') AS t2
                                             ON t1.camera_id = t2.camera_id
-                                            WHERE t1.direction IN {tuple(selectedDestination)}
+                                            WHERE t1.direction IN {tuple(userSlicerSelections['destinations'])}
                                                     AND DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') IN {hourlyDatetimeTuple}
                                             GROUP BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00'),
                                                     t2.address,
@@ -146,8 +136,8 @@ class Event:
                                                     t1.item_type
                                             ORDER BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') DESC
                                             ;'''
-            elif len(selectedRoad) != 1:
-                event_query = f'''SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
+            elif len(userSlicerSelections['roads']) != 1:
+                eventQuery = f'''SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
                                                     t2.address,
                                                     t2.camera_id,
                                                     t1.direction,
@@ -162,9 +152,9 @@ class Event:
                                                                 equipment_id,
                                                                 camera_id
                                                         FROM dim_camera_states
-                                                        WHERE address IN {tuple(selectedRoad)}) AS t2
+                                                        WHERE address IN {tuple(userSlicerSelections['roads'])}) AS t2
                                             ON t1.camera_id = t2.camera_id
-                                            WHERE t1.direction IN {tuple(selectedDestination)}
+                                            WHERE t1.direction IN {tuple(userSlicerSelections['destinations'])}
                                                     AND DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') IN {hourlyDatetimeTuple}
                                             GROUP BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00'),
                                                     t2.address,
@@ -181,4 +171,4 @@ class Event:
         else:
             print('Error in destination length')
         
-        return event_query
+        return eventQuery

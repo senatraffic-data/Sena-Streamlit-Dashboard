@@ -32,37 +32,24 @@ class VolumeSpeedLOS:
         self.dimCamera = sqlToDataframe(databaseCredentials, query1)
     
     @st.cache_data
-    def getFactVolumeSpeed(
-        _self,
-        selectedDatetime,
-        roadSelections, 
-        destinationSelections, 
-        databaseCredentials
-    ):
+    def getFactVolumeSpeed(_self, userSlicerSelections, databaseCredentials):
         dateFormat = '%Y-%m-%d %H:%M:%S'
+        
         hourlyDatetime = pd.date_range(
-            start=selectedDatetime[0], 
-            end=selectedDatetime[-1], 
+            start=userSlicerSelections['hourlyDatetime'][0], 
+            end=userSlicerSelections['hourlyDatetime'][-1], 
             freq='H'
         ).strftime(dateFormat)
+        
         hourlyDatetimeTuple = tuple(hourlyDatetime)
-        query = _self.getVolumeSpeedLOSQuery(
-            hourlyDatetimeTuple,
-            roadSelections, 
-            destinationSelections
-        ) 
+        query = _self.getVolumeSpeedLOSQuery(hourlyDatetimeTuple, userSlicerSelections) 
         _self.factVolumeSpeed = sqlToDataframe(databaseCredentials, query)
         _self.factVolumeSpeed['datetime'] = pd.to_datetime(_self.factVolumeSpeed['datetime'])
         
-    def getVolumeSpeedLOSQuery(
-        self,
-        hourlyDatetimeTuple,
-        roadSelection, 
-        destinationSelection, 
-    ) -> str:
-        if len(roadSelection) == 1:
+    def getVolumeSpeedLOSQuery(self, hourlyDatetimeTuple, userSlicerSelections) -> str:
+        if len(userSlicerSelections['roads']) == 1:
             
-            if len(destinationSelection) == 1:
+            if len(userSlicerSelections['destinations']) == 1:
                 query = f'''
                     SELECT *,
                         (total_count - motorbike_count) / (lane_speed * indicator) AS LOS
@@ -95,9 +82,9 @@ class VolumeSpeedLOS:
                                             equipment_id,
                                             camera_id
                                     FROM dim_camera_states
-                                    WHERE address = '{roadSelection[0]}') AS t2
+                                    WHERE address = '{userSlicerSelections['roads'][0]}') AS t2
                         ON t1.camera_id = t2.camera_id
-                        WHERE t1.destination = '{destinationSelection[0]}'
+                        WHERE t1.destination = '{userSlicerSelections['destinations'][0]}'
                                 AND DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') IN {hourlyDatetimeTuple}
                         GROUP BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00'),
                                 t2.address,
@@ -108,7 +95,7 @@ class VolumeSpeedLOS:
                         ORDER BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') DESC) AS metrics
                         ;
                 '''
-            elif len(destinationSelection) != 1:
+            elif len(userSlicerSelections['destinations']) != 1:
                 query = f'''SELECT *,
                                 (total_count - motorbike_count) / (lane_speed * indicator) AS LOS
                             FROM (SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
@@ -142,9 +129,9 @@ class VolumeSpeedLOS:
                                                     equipment_id,
                                                     camera_id
                                             FROM dim_camera_states
-                                            WHERE address = '{roadSelection[0]}') AS t2
+                                            WHERE address = '{userSlicerSelections['roads'][0]}') AS t2
                                 ON t1.camera_id = t2.camera_id
-                                WHERE t1.destination IN {tuple(destinationSelection)}
+                                WHERE t1.destination IN {tuple(userSlicerSelections['destinations'])}
                                         AND DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') IN {hourlyDatetimeTuple}
                                 GROUP BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00'),
                                         t2.address,
@@ -157,9 +144,9 @@ class VolumeSpeedLOS:
             else:
                 print('ERROR IN DESTINATION')
             
-        elif len(roadSelection) != 1:
+        elif len(userSlicerSelections['roads']) != 1:
             
-            if len(destinationSelection) == 1:
+            if len(userSlicerSelections['destinations']) == 1:
                 query = f'''SELECT *,
                                 (total_count - motorbike_count) / (lane_speed * indicator) AS LOS
                             FROM (SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
@@ -193,9 +180,9 @@ class VolumeSpeedLOS:
                                                     equipment_id,
                                                     camera_id
                                             FROM dim_camera_states
-                                            WHERE address IN {tuple(roadSelection)}) AS t2
+                                            WHERE address IN {tuple(userSlicerSelections['roads'])}) AS t2
                                 ON t1.camera_id = t2.camera_id
-                                WHERE t1.destination = '{destinationSelection[0]}'
+                                WHERE t1.destination = '{userSlicerSelections['destinations'][0]}'
                                         AND DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') IN {hourlyDatetimeTuple}
                                 GROUP BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00'),
                                         t2.address,
@@ -205,7 +192,7 @@ class VolumeSpeedLOS:
                                         LEFT(t1.zone, 3)
                                 ORDER BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') DESC) AS metrics
                             ;'''
-            elif len(destinationSelection) != 1:
+            elif len(userSlicerSelections['destinations']) != 1:
                 query = f'''SELECT *,
                                 (total_count - motorbike_count) / (lane_speed * indicator) AS LOS
                             FROM (SELECT DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') AS datetime,
@@ -239,9 +226,9 @@ class VolumeSpeedLOS:
                                                     equipment_id,
                                                     camera_id
                                             FROM dim_camera_states
-                                            WHERE address IN {tuple(roadSelection)}) AS t2
+                                            WHERE address IN {tuple(userSlicerSelections['roads'])}) AS t2
                                 ON t1.camera_id = t2.camera_id
-                                WHERE t1.destination IN {tuple(destinationSelection)}
+                                WHERE t1.destination IN {tuple(userSlicerSelections['destinations'])}
                                         AND DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00') IN {hourlyDatetimeTuple}
                                 GROUP BY DATE_FORMAT(t1.time, '%Y-%m-%d %H:00:00'),
                                         t2.address,
@@ -265,8 +252,10 @@ class VolumeSpeedLOS:
             index=['datetime'],
             columns=['destination']
         )
+        
         dfHourlyLOS = dfHourlyLOS.asfreq('H').ffill()
         dfHourlyLOSConditioned = self.hourlyLOSConditional(dfHourlyLOS, selectedDestinations)
+        
         return dfHourlyLOSConditioned
         
     def hourlyLOSConditional(self, dfHourlyLOS, selectedDestinations):

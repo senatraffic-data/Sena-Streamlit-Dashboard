@@ -13,6 +13,7 @@ class Authenticator:
     def loadConfig(self, filePath, fileLoader):
         with open(filePath) as file:
             config = yaml.load(file, Loader=fileLoader)
+            
         return config
     
     def authenticate(self, filePath='user_logins.yaml', fileLoader=SafeLoader):
