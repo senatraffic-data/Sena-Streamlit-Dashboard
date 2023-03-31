@@ -99,12 +99,7 @@ if myAuthenticator.authenticationStatus:
     
     try:
         volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
-        
-        volumeSpeedLOS.getFactVolumeSpeed(
-            userSlicerSelections, 
-            databaseCredentials
-        )
-        
+        volumeSpeedLOS.getFactVolumeSpeed(userSlicerSelections, databaseCredentials)
         factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
     except:
         st.write(NO_DATA_MESSAGE)
