@@ -43,7 +43,7 @@ if myAuthenticator.authenticationStatus:
     st.markdown("[Time-Series Model Testing](#time-series-model-testing)")
     st.markdown("[Forecasting](#forecasting)")
     
-    databaseCredentials = {
+    databaseInfo = {
         'HOSTNAME': st.secrets.mysql.HOSTNAME,
         'USERNAME': st.secrets.mysql.USERNAME,
         'USERPASSWORD': st.secrets.mysql.USERPASSWORD,
@@ -98,8 +98,8 @@ if myAuthenticator.authenticationStatus:
     volumeSpeedLOS = VolumeSpeedLOS()
     
     
-    volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
-    volumeSpeedLOS.getFactVolumeSpeed(userSlicerSelections, databaseCredentials)
+    volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseInfo)
+    volumeSpeedLOS.getVolumeSpeedLOS(userSlicerSelections, databaseInfo)
     factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
     
     
