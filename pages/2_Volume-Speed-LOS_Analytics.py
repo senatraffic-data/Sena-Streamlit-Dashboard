@@ -97,12 +97,11 @@ if myAuthenticator.authenticationStatus:
     
     volumeSpeedLOS = VolumeSpeedLOS()
     
-    try:
-        volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
-        volumeSpeedLOS.getFactVolumeSpeed(userSlicerSelections, databaseCredentials)
-        factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
-    except:
-        st.write(NO_DATA_MESSAGE)
+    
+    volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
+    volumeSpeedLOS.getFactVolumeSpeed(userSlicerSelections, databaseCredentials)
+    factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
+    
     
     try:
         dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(userSlicerSelections['destinations'])
