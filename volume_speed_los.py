@@ -32,7 +32,7 @@ class VolumeSpeedLOS:
         self.dimCamera = sqlToDataframe(databaseCredentials, query1)
     
     @st.cache_data
-    def getFactVolumeSpeed(_self, userSlicerSelections, databaseCredentials):
+    def getVolumeSpeedLOS(_self, userSlicerSelections, databaseInfo):
         dateFormat = '%Y-%m-%d %H:%M:%S'
         
         hourlyDatetime = pd.date_range(
@@ -43,7 +43,7 @@ class VolumeSpeedLOS:
         
         hourlyDatetimeTuple = tuple(hourlyDatetime)
         query = _self.getVolumeSpeedLOSQuery(hourlyDatetimeTuple, userSlicerSelections) 
-        _self.factVolumeSpeed = sqlToDataframe(databaseCredentials, query)
+        _self.factVolumeSpeed = sqlToDataframe(databaseInfo, query)
         _self.factVolumeSpeed['datetime'] = pd.to_datetime(_self.factVolumeSpeed['datetime'])
         
     def getVolumeSpeedLOSQuery(self, hourlyDatetimeTuple, userSlicerSelections) -> str:
