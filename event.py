@@ -4,11 +4,14 @@ from my_functions import sqlToDataframe
 
 import streamlit as st
 
+from datetime import datetime, timedelta
+
 
 class Event:
     def __init__(self) -> None:
         self.factEvent = None
         self.dimCamera = None
+        
         
     def getFilteredCameras(self, selectedRoad, databaseCredentials):
         if len(selectedRoad) != 1:
@@ -30,16 +33,23 @@ class Event:
 
         self.dimCamera = sqlToDataframe(databaseCredentials, query1)
     
+    
     def getfactEventDataframe(self, userSlicerSelections, databaseCredentials):
-        hourlyDatetime = pd.date_range(
-            start=userSlicerSelections['hourlyDatetime'][0],
-            end=userSlicerSelections['hourlyDatetime'][-1],
-            freq='H'
-        ).strftime(userSlicerSelections['hourlyDatetimeFormat'])
+        startTime = datetime.strptime(userSlicerSelections['hourlyDatetime'][0] + ' 2023', '%d %b %I %p %Y')
+        endTime = datetime.strptime(userSlicerSelections['hourlyDatetime'][-1] + ' 2023', '%d %b %I %p %Y')
+
+        hourlyList = []
+        curremtTime = startTime
+
+        while curremtTime <= endTime:
+            currentTimeString = curremtTime.strftime('%Y-%m-%d %H:00:00')
+            hourlyList.append(currentTimeString)
+            curremtTime += timedelta(hours=1)
         
-        hourlyDatetimeTuple = tuple(hourlyDatetime)
+        hourlyDatetimeTuple = tuple(hourlyList)
         eventQuery = self.getMainEventQuery(hourlyDatetimeTuple, userSlicerSelections)
         self.factEvent = sqlToDataframe(databaseCredentials, eventQuery)
+    
     
     def getMainEventQuery(self, hourlyDatetimeTuple, userSlicerSelections) -> str:
         if len(userSlicerSelections['destinations']) == 1:

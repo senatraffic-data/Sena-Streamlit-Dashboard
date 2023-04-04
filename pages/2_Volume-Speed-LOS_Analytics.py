@@ -43,7 +43,7 @@ if myAuthenticator.authenticationStatus:
     st.markdown("[Time-Series Model Testing](#time-series-model-testing)")
     st.markdown("[Forecasting](#forecasting)")
     
-    databaseInfo = {
+    databaseCredentials = {
         'HOSTNAME': st.secrets.mysql.HOSTNAME,
         'USERNAME': st.secrets.mysql.USERNAME,
         'USERPASSWORD': st.secrets.mysql.USERPASSWORD,
@@ -70,10 +70,10 @@ if myAuthenticator.authenticationStatus:
     # hashedPasswords = stauth.Hasher(['senatraffic123']).generate()
     HOURLY_DATETIME_FORMAT = '%Y-%m-%d %H:00:00'
     NO_DATA_MESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
-    hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLY_DATETIME_FORMAT)
+    hourlyDateRange, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLY_DATETIME_FORMAT)
     
     temporalSpatialInfo = {
-        'hourlyDatetime': hourlyDatetimeList, 
+        'hourlyDatetime': hourlyDateRange, 
         'roads': availableRoads, 
         'destinations': availableDestinations, 
         'today': todayStr, 
@@ -97,11 +97,12 @@ if myAuthenticator.authenticationStatus:
     
     volumeSpeedLOS = VolumeSpeedLOS()
     
-    
-    volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseInfo)
-    volumeSpeedLOS.getVolumeSpeedLOS(userSlicerSelections, databaseInfo)
-    factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
-    
+    try:
+        volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
+        volumeSpeedLOS.getFactVolumeSpeed(userSlicerSelections, databaseCredentials)
+        factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
+    except:
+        st.write(NO_DATA_MESSAGE)
     
     try:
         dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(userSlicerSelections['destinations'])
