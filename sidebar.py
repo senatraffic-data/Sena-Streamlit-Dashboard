@@ -20,10 +20,16 @@ class EventSidebar(Sidebar):
         with st.sidebar:
                 
             with st.form(key='slicer'):
+                hourlyDateRangeLongForm = self.temporalSpatialInfo['hourlyDatetime'].strftime('%Y-%m-%d %H:00:00')
+                hourlyDateRangeShortForm = self.temporalSpatialInfo['hourlyDatetime'].strftime('%d %b %I %p')
+
+                hourlyDateRangeLongForm = list(hourlyDateRangeLongForm)
+                hourlyDateRangeShortForm = list(hourlyDateRangeShortForm)
+                
                 selectedDatetime = st.select_slider(
                     'Timestamp', 
-                    self.temporalSpatialInfo['hourlyDatetime'],
-                    value=(self.temporalSpatialInfo['todayMinus2'], self.temporalSpatialInfo['today'])
+                    hourlyDateRangeShortForm,
+                    value=(hourlyDateRangeShortForm[0], hourlyDateRangeShortForm[-1])
                 )
                 
                 selectedRoads = st.multiselect(
@@ -54,10 +60,16 @@ class VolumeSidebar(Sidebar):
             with st.form(key='queryDataKey'):
                 st.write('Choose your relevant filters below then click "Submit". Will take some time...')
                 
+                hourlyDateRangeLongForm = self.temporalSpatialInfo['hourlyDatetime'].strftime('%Y-%m-%d %H:00:00')
+                hourlyDateRangeShortForm = self.temporalSpatialInfo['hourlyDatetime'].strftime('%d %b %I %p')
+
+                hourlyDateRangeLongForm = list(hourlyDateRangeLongForm)
+                hourlyDateRangeShortForm = list(hourlyDateRangeShortForm)
+                
                 selectedDatetime = st.select_slider(
                     'Timestamp', 
-                    self.temporalSpatialInfo['hourlyDatetime'],
-                    value=(self.temporalSpatialInfo['todayMinus2'], self.temporalSpatialInfo['today'])
+                    hourlyDateRangeShortForm,
+                    value=(hourlyDateRangeShortForm[0], hourlyDateRangeShortForm[-1])
                 )
                 
                 selectedRoads = st.multiselect(

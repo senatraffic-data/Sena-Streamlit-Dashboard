@@ -2,3 +2,5 @@
 # .streamlit/secrets.toml
 # user_logins.yaml
 Web Traffic Dashboard Overall View.png
+.metals/metals.lock.db
+.metals/metals.log

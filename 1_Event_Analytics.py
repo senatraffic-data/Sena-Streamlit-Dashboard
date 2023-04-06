@@ -16,6 +16,8 @@ from sidebar import EventSidebar
 
 from event import Event
 
+from datetime import datetime
+
 
 def main() -> None:
     myAuthenticator = Authenticator()
@@ -69,10 +71,10 @@ def main() -> None:
         HOURLY_DATETIME_FORMAT = '%Y-%m-%d %H:00:00'
         NO_DATA_MESSAGE = 'No data to display. Apply and submit slicers in sidebar first'
         eventCountString = 'Event Counts'
-        hourlyDatetimeList, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLY_DATETIME_FORMAT)
+        hourlyDateRange, todayStr, todayMinus2Str = generateHourlyDatetime(HOURLY_DATETIME_FORMAT)
         
         temporalSpatialInfo = {
-            'hourlyDatetime': hourlyDatetimeList, 
+            'hourlyDatetime': hourlyDateRange, 
             'roads': availableRoads, 
             'destinations': availableDestinations, 
             'today': todayStr, 

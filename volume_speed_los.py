@@ -4,6 +4,8 @@ import streamlit as st
 
 from my_functions import sqlToDataframe
 
+from datetime import datetime, timedelta
+
 
 @st.cache_resource
 class VolumeSpeedLOS:
@@ -31,20 +33,22 @@ class VolumeSpeedLOS:
 
         self.dimCamera = sqlToDataframe(databaseCredentials, query1)
     
-    @st.cache_data
-    def getVolumeSpeedLOS(_self, userSlicerSelections, databaseInfo):
-        dateFormat = '%Y-%m-%d %H:%M:%S'
-        
-        hourlyDatetime = pd.date_range(
-            start=userSlicerSelections['hourlyDatetime'][0], 
-            end=userSlicerSelections['hourlyDatetime'][-1], 
-            freq='H'
-        ).strftime(dateFormat)
-        
-        hourlyDatetimeTuple = tuple(hourlyDatetime)
-        query = _self.getVolumeSpeedLOSQuery(hourlyDatetimeTuple, userSlicerSelections) 
-        _self.factVolumeSpeed = sqlToDataframe(databaseInfo, query)
-        _self.factVolumeSpeed['datetime'] = pd.to_datetime(_self.factVolumeSpeed['datetime'])
+    def getFactVolumeSpeed(self, userSlicerSelections, databaseCredentials):
+        startTime = datetime.strptime(userSlicerSelections['hourlyDatetime'][0] + ' 2023', '%d %b %I %p %Y')
+        endTime = datetime.strptime(userSlicerSelections['hourlyDatetime'][-1] + ' 2023', '%d %b %I %p %Y')
+
+        hourlyList = []
+        currentTime = startTime
+
+        while currentTime <= endTime:
+            currentTimeString = currentTime.strftime('%Y-%m-%d %H:00:00')
+            hourlyList.append(currentTimeString)
+            currentTime += timedelta(hours=1)
+            
+        hourlyDatetimeTuple = tuple(hourlyList)
+        query = self.getVolumeSpeedLOSQuery(hourlyDatetimeTuple, userSlicerSelections) 
+        self.factVolumeSpeed = sqlToDataframe(databaseCredentials, query)
+        self.factVolumeSpeed['datetime'] = pd.to_datetime(self.factVolumeSpeed['datetime'])
         
     def getVolumeSpeedLOSQuery(self, hourlyDatetimeTuple, userSlicerSelections) -> str:
         if len(userSlicerSelections['roads']) == 1:

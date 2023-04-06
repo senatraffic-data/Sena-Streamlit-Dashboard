@@ -69,11 +69,9 @@ def generateHourlyDatetime(dateFormat: str):
         start=todayMinus2Str, 
         end=todayStr, 
         freq='H'
-    ).strftime(dateFormat)
+    )
     
-    hourlyDatetimeList = list(hourlyDateRange)
-    
-    return hourlyDatetimeList, todayStr, todayMinus2Str
+    return hourlyDateRange, todayStr, todayMinus2Str
 
 
 def displayStreetsAndCameras(dfHotspotStreets, dfInOutKL, dimCamera):
