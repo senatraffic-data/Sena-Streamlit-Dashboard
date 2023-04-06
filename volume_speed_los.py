@@ -33,7 +33,7 @@ class VolumeSpeedLOS:
 
         self.dimCamera = sqlToDataframe(databaseCredentials, query1)
     
-    def getFactVolumeSpeed(_self, userSlicerSelections, databaseCredentials):
+    def getFactVolumeSpeed(self, userSlicerSelections, databaseCredentials):
         startTime = datetime.strptime(userSlicerSelections['hourlyDatetime'][0] + ' 2023', '%d %b %I %p %Y')
         endTime = datetime.strptime(userSlicerSelections['hourlyDatetime'][-1] + ' 2023', '%d %b %I %p %Y')
 
@@ -46,9 +46,9 @@ class VolumeSpeedLOS:
             currentTime += timedelta(hours=1)
             
         hourlyDatetimeTuple = tuple(hourlyList)
-        query = _self.getVolumeSpeedLOSQuery(hourlyDatetimeTuple, userSlicerSelections) 
-        _self.factVolumeSpeed = sqlToDataframe(databaseCredentials, query)
-        _self.factVolumeSpeed['datetime'] = pd.to_datetime(_self.factVolumeSpeed['datetime'])
+        query = self.getVolumeSpeedLOSQuery(hourlyDatetimeTuple, userSlicerSelections) 
+        self.factVolumeSpeed = sqlToDataframe(databaseCredentials, query)
+        self.factVolumeSpeed['datetime'] = pd.to_datetime(self.factVolumeSpeed['datetime'])
         
     def getVolumeSpeedLOSQuery(self, hourlyDatetimeTuple, userSlicerSelections) -> str:
         if len(userSlicerSelections['roads']) == 1:
