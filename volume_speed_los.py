@@ -33,18 +33,17 @@ class VolumeSpeedLOS:
 
         self.dimCamera = sqlToDataframe(databaseCredentials, query1)
     
-    @st.cache_data
     def getFactVolumeSpeed(_self, userSlicerSelections, databaseCredentials):
         startTime = datetime.strptime(userSlicerSelections['hourlyDatetime'][0] + ' 2023', '%d %b %I %p %Y')
         endTime = datetime.strptime(userSlicerSelections['hourlyDatetime'][-1] + ' 2023', '%d %b %I %p %Y')
 
         hourlyList = []
-        curremtTime = startTime
+        currentTime = startTime
 
-        while curremtTime <= endTime:
-            currentTimeString = curremtTime.strftime('%Y-%m-%d %H:00:00')
+        while currentTime <= endTime:
+            currentTimeString = currentTime.strftime('%Y-%m-%d %H:00:00')
             hourlyList.append(currentTimeString)
-            curremtTime += timedelta(hours=1)
+            currentTime += timedelta(hours=1)
             
         hourlyDatetimeTuple = tuple(hourlyList)
         query = _self.getVolumeSpeedLOSQuery(hourlyDatetimeTuple, userSlicerSelections) 
