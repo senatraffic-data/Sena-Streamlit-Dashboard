@@ -1,34 +1,44 @@
 import pandas as pd
 
 import streamlit as st
-import streamlit_authenticator as stauth
+
 from streamlit_authenticator import SafeLoader
 
 import os
 
-from my_functions import dataframeToCSV, displayStreetsAndCameras, generateHourlyDatetime
+from my_functions import (
+    dataframeToCSV, 
+    displayStreetsAndCameras, 
+    generateHourlyDatetime,
+    authenticate,
+    renderEventSidebar,
+    getFilteredCameras,
+    getfactEventDataframe
+)
 
-from event_displayer import EventDisplayer
-
-from authenticator import Authenticator
-
-from sidebar import EventSidebar
-
-from event import Event
-
-from datetime import datetime
+from event_displayer_functions import (
+    displayDetectionConfidenceByEventAndItemType,
+    displayEventCountByCameraID,
+    displayEventCountByLane,
+    displayHourlyDetectionConfidence,
+    displayHourlyEventCount,
+    displayOverallMetrics,
+    displayTreemap
+)
 
 
 def main() -> None:
-    myAuthenticator = Authenticator()
     USERS_YAML_PATH = 'user_logins.yaml'
     userLoginsYamlPath = os.path.join(os.getcwd(), USERS_YAML_PATH)   
     streamlitLoader = SafeLoader
-    myAuthenticator.authenticate(filePath=userLoginsYamlPath, fileLoader=streamlitLoader)
+    name, authenticationStatus, streamlitAuthenticator = authenticate(
+        filePath=userLoginsYamlPath, 
+        fileLoader=streamlitLoader
+    )
     
-    if myAuthenticator.authenticationStatus:
-        myAuthenticator.streamlitAuthenticator.logout('Logout', 'main')
-        st.write(f'Welcome *{myAuthenticator.name}*')
+    if authenticationStatus:
+        streamlitAuthenticator.logout('Logout', 'main')
+        st.write(f'Welcome *{name}*')
         st.title('Traffic Dashboard')
         
         st.header('Quick Links')
@@ -52,6 +62,7 @@ def main() -> None:
         
         IMPORTANT_ROADS_PATH1 = 'data'
         IMPORTANT_ROADS_PATH2 = 'Important_Roads.xlsx'
+        
         DATAPATH = os.path.join(
             os.getcwd(),
             IMPORTANT_ROADS_PATH1,
@@ -82,10 +93,8 @@ def main() -> None:
             'hourlyDatetimeFormat': HOURLY_DATETIME_FORMAT
         }
         
-        sidebar = EventSidebar(temporalSpatialInfo)
-        
         try:
-            selectedDatetime, selectedRoads, selectedDestinations = sidebar.renderSidebar()
+            selectedDatetime, selectedRoads, selectedDestinations = renderEventSidebar(temporalSpatialInfo)
             
             userSlicerSelections = {
                 'hourlyDatetime': selectedDatetime, 
@@ -96,34 +105,30 @@ def main() -> None:
         except:
             st.write(NO_DATA_MESSAGE)
         
-        event = Event()
-        
         try:
-            event.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
-            event.getfactEventDataframe(userSlicerSelections, databaseCredentials)
-            factEventCSV = dataframeToCSV(event.factEvent)
+            dimCamera = getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
+            factEvent = getfactEventDataframe(userSlicerSelections, databaseCredentials)
+            factEventCSV = dataframeToCSV(factEvent)
         except:
             st.write(NO_DATA_MESSAGE)
 
-        eventDisplayer = EventDisplayer(event)
-        
         try:
-            eventDisplayer.displayOverallMetrics()
-            eventDisplayer.displayEventCountByCameraID()
-            eventDisplayer.displayTreemap()
-            eventDisplayer.displayEventCountByLane()
-            eventDisplayer.displayDetectionConfidenceByEventAndItemType()
-            eventDisplayer.displayHourlyDetectionConfidence()
-            eventDisplayer.displayHourlyEventCount(userSlicerSelections['destinations'], eventCountString)
+            displayOverallMetrics(factEvent)
+            displayEventCountByCameraID(factEvent)
+            displayTreemap(factEvent)
+            displayEventCountByLane(factEvent)
+            displayDetectionConfidenceByEventAndItemType(factEvent)
+            displayHourlyDetectionConfidence(factEvent)
+            displayHourlyEventCount(factEvent, userSlicerSelections['destinations'], eventCountString)
             
             displayStreetsAndCameras(
                 dfHotspotStreets, 
                 dfInOutKL, 
-                event.dimCamera
+                dimCamera
             )
             
             st.header('Raw Event Data')
-            st.write(event.factEvent)
+            st.write(factEvent)
             
             st.download_button(
                 label="Download data as CSV",
@@ -142,9 +147,9 @@ def main() -> None:
         # elif username == 'rbriggs':
         #     st.write(f'Welcome *{name}*')
         #     st.title('Application 2')
-    elif myAuthenticator.authenticationStatus == False:
+    elif authenticationStatus == False:
         st.error('Username/password is incorrect')
-    elif myAuthenticator.authenticationStatus == None:
+    elif authenticationStatus == None:
         st.warning('Please enter your username and password')
 
 
