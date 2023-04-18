@@ -4,32 +4,47 @@ import pandas as pd
 
 import streamlit as st
 
-from authenticator import Authenticator
-
-from my_functions import dataframeToCSV, displayStreetsAndCameras, generateHourlyDatetime
+from my_functions import (
+    authenticate,
+    dataframeToCSV, 
+    displayStreetsAndCameras,
+    fitPredict, 
+    generateHourlyDatetime,
+    generateHourlyLOS,
+    getFactVolumeSpeed,
+    getFilteredCameras,
+    getForecasts,
+    getMetrics,
+    renderVolumeSidebar,
+    trainTestSplitData
+)
 
 from streamlit_authenticator import SafeLoader
 
-from sidebar import VolumeSidebar
+from time_series_displayer_functions import (
+    displayTimeseriesForecasting, 
+    displayTimeseriesTesting
+)
 
-from timeseries_displayer import TimeSeriesDisplayer
-from timeseries_forecaster import TimeSeriesForecaster
-from volume_displayer import VolumeDisplayer
+from volume_displayer_functions import (
+    displayHeatMap, 
+    displayHourlyLOSInboundOutbound, 
+    displayHourlyVehicleCount, 
+    displayOverallVolumeSpeedMetrics
+)
 
-from volume_speed_los import VolumeSpeedLOS
 
-# import streamlit_authenticator as stauth
-
-
-myAuthenticator = Authenticator()
 USERS_YAML_PATH = 'user_logins.yaml'
 userLoginsYamlPath = os.path.join(os.getcwd(), USERS_YAML_PATH)   
 streamlitLoader=SafeLoader
-myAuthenticator.authenticate(filePath=userLoginsYamlPath, fileLoader=streamlitLoader)
+name, authenticationStatus, streamlitAuthenticator = authenticate(
+    filePath=userLoginsYamlPath, 
+    fileLoader=streamlitLoader
+)
 
-if myAuthenticator.authenticationStatus:
-    myAuthenticator.streamlitAuthenticator.logout('Logout', 'main')
-    st.write(f'Welcome *{myAuthenticator.name}*')
+if authenticationStatus:
+    streamlitAuthenticator.logout('Logout', 'main')
+    st.write(f'Welcome *{name}*')
     st.title('Traffic Dashboard')
     
     st.header('Quick Links')
@@ -81,10 +96,8 @@ if myAuthenticator.authenticationStatus:
         'hourlyDatetimeFormat': HOURLY_DATETIME_FORMAT
     }
     
-    sidebar = VolumeSidebar(temporalSpatialInfo)
-    
     try:
-        selectedDatetime, selectedRoads, selectedDestinations, hoursToForecast = sidebar.renderSidebar()
+        selectedDatetime, selectedRoads, selectedDestinations, hoursToForecast = renderVolumeSidebar(temporalSpatialInfo)
         
         userSlicerSelections = {
             'hourlyDatetime': selectedDatetime, 
@@ -95,21 +108,17 @@ if myAuthenticator.authenticationStatus:
     except:
         st.write(NO_DATA_MESSAGE)
     
-    volumeSpeedLOS = VolumeSpeedLOS()
-    
     try:
-        volumeSpeedLOS.getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
-        volumeSpeedLOS.getFactVolumeSpeed(userSlicerSelections, databaseCredentials)
-        factVolumeSpeedCSV = dataframeToCSV(volumeSpeedLOS.factVolumeSpeed)
+        dimCamera = getFilteredCameras(userSlicerSelections['roads'], databaseCredentials)
+        factVolumeSpeed = getFactVolumeSpeed(userSlicerSelections, databaseCredentials)
+        factVolumeSpeedCSV = dataframeToCSV(factVolumeSpeed)
     except:
         st.write(NO_DATA_MESSAGE)
     
     try:
-        dfHourlyLOS = volumeSpeedLOS.generateHourlyLOS(userSlicerSelections['destinations'])
+        dfHourlyLOS = generateHourlyLOS(factVolumeSpeed, userSlicerSelections['destinations'])
     except:
         st.write(NO_DATA_MESSAGE)
-    
-    volumeDisplayer = VolumeDisplayer(volumeSpeedLOS)
     
     st.header('Inbound')
 
@@ -117,10 +126,10 @@ if myAuthenticator.authenticationStatus:
         heatMapColumn11 ,heatMapColumn12 = st.columns([1, 1.5], gap='large')
         
         with heatMapColumn11:
-            volumeDisplayer.displayOverallVolumeSpeedMetrics(destination='IN')
+            displayOverallVolumeSpeedMetrics(factVolumeSpeed, destination='IN')
             
         with heatMapColumn12:
-            volumeDisplayer.displayHeatMap(destination='IN')   
+            displayHeatMap(factVolumeSpeed, dimCamera, destination='IN')   
     except:
         st.write(NO_DATA_MESSAGE)
         
@@ -130,25 +139,25 @@ if myAuthenticator.authenticationStatus:
         heatMapColumn21 , heatMapColumn22 = st.columns([1, 1.5], gap='large')
         
         with heatMapColumn21:
-            volumeDisplayer.displayOverallVolumeSpeedMetrics(destination='OUT')
+            displayOverallVolumeSpeedMetrics(factVolumeSpeed, destination='OUT')
             
         with heatMapColumn22:
-            volumeDisplayer.displayHeatMap(destination='OUT')
+            displayHeatMap(factVolumeSpeed, dimCamera, destination='OUT')   
     except:
         st.write(NO_DATA_MESSAGE)
     
     try:    
-        volumeDisplayer.displayHourlyVehicleCount()
-        volumeDisplayer.displayHourlyLOSInboundOutbound(dfHourlyLOS)
+        displayHourlyVehicleCount(factVolumeSpeed)
+        displayHourlyLOSInboundOutbound(dfHourlyLOS)
        
         displayStreetsAndCameras(
             dfHotspotStreets,
             dfInOutKL,
-            volumeSpeedLOS.dimCamera
+            dimCamera
         )
         
         st.header('Raw Volume-Speed-LOS Data')
-        st.write(volumeSpeedLOS.factVolumeSpeed)
+        st.write(factVolumeSpeed)
         
         st.download_button(
             label="Download data as CSV",
@@ -158,21 +167,30 @@ if myAuthenticator.authenticationStatus:
         )
     except:
         st.write(NO_DATA_MESSAGE)
-    
-    timeSeriesForecaster = TimeSeriesForecaster()
-    
+
     try:
-        timeSeriesForecaster.trainTestSplitData(dfHourlyLOS)
-        timeSeriesForecaster.fitPredict()
-        timeSeriesForecaster.getForecasts(hoursToForecast)
-        timeSeriesForecaster.getMetrics()
+        yTrain, yTest, yEndogenous = trainTestSplitData(dfHourlyLOS)
+        yPred, yCombined, predictionInterval, fittedForecaster = fitPredict(yTrain, yTest)
+        yCombinedForecast, predictionIntevalForecast = getForecasts(hoursToForecast, fittedForecaster, yEndogenous)
         
-        timeSeriesDisplayer = TimeSeriesDisplayer(timeSeriesForecaster)
-        timeSeriesDisplayer.displayTimeseriesTesting()
-        timeSeriesDisplayer.displayTimeseriesForecasting()
+        mape, mse = getMetrics(yTest, yPred)
+        
+        displayTimeseriesTesting(
+            fittedForecaster, 
+            yCombined,
+            predictionInterval, 
+            mape,
+            mse
+        )
+        
+        displayTimeseriesForecasting(
+            yCombinedForecast,
+            predictionIntevalForecast, 
+            yEndogenous
+        )
     except:
         st.write(NO_DATA_MESSAGE)
-
+    
         ## Use the below if-else block for a more personalized experience for different users (privilege based on username)
         ## Commented out for now
         # if username == 'jsmith':
@@ -181,7 +199,7 @@ if myAuthenticator.authenticationStatus:
         # elif username == 'rbriggs':
         #     st.write(f'Welcome *{name}*')
         #     st.title('Application 2')
-elif myAuthenticator.authenticationStatus == False:
+elif authenticationStatus == False:
     st.error('Username/password is incorrect')
-elif myAuthenticator.authenticationStatus == None:
+elif authenticationStatus == None:
     st.warning('Please enter your username and password')
